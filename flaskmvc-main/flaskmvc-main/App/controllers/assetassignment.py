@@ -1,43 +1,75 @@
-from App.models import AssetAssignment
+from App.models import AssetAssignment, Asset, Room, Assignee
 from App.database import db
+from datetime import datetime
 
-def create_asset_assignment(assignment_id, asset_id, assigned_to_assignee_id, floor_id, assignment_date=None, return_date=None):
-    new_assignment = AssetAssignment(
-        assignment_id=assignment_id,
+def create_asset_assignment(asset_id, assignee_id, room_id):
+    asset = Asset.query.get(asset_id)
+    assignee = Assignee.query.get(assignee_id)
+    room = Room.query.get(room_id)
+
+    if not asset or not assignee or not room:
+        return None
+
+    assignment = AssetAssignment(
         asset_id=asset_id,
-        assigned_to_assignee_id=assigned_to_assignee_id,
-        floor_id=floor_id,
-        assignment_date=assignment_date,
-        return_date=return_date
+        assignee_id=assignee_id,
+        room_id = room_id,
+        start_date= datetime.utcnow(),
+        end_date = None
     )
-    db.session.add(new_assignment)
+    db.session.add(assignment)
     db.session.commit()
-    return new_assignment
+
+    return assignment
+
+def end_assignment(assignment_id):
+
+    assignment = AssetAssignment.query.get(assignment_id)
+
+    if not assignment:
+        return None
+
+    assignment.end_date = datetime.utcnow()
+
+    db.session.commit()
+
+    return assignment
+
+def get_all_asset_assignment():
+    return AssetAssignment.query.all()
+
+def get_all_asset_assignment_json():
+    assignments = get_all_asset_assignment()
+
+    if not assignments:
+        return[]
+
+    return [assignment.get_json() for assignment in assignments]
 
 def get_asset_assignment_by_id(assignment_id):
     return AssetAssignment.query.get(assignment_id)
 
-def get_all_asset_assignments():
-    return AssetAssignment.query.all()
+def get_assignments_by_assignee(assignee_id):
+    return AssetAssignment.query.filter_by(assignee_id = assignee_id).all()
 
-def get_all_asset_assignments_json():
-    return [assignment.to_dict() for assignment in get_all_asset_assignments()]
+def get_assignments_by_asset(asset_id):
+    return AssetAssignment.query.filter_by(asset_id = asset_id).all()
 
-def update_asset_assignment(assignment_id, asset_id=None, assigned_to_assignee_id=None, floor_id=None, assignment_date=None, return_date=None):
+def update_asset_assignment(assignment_id, asset_id=None, assignee_id=None, start_date=None, end_date=None):
     assignment = get_asset_assignment_by_id(assignment_id)
     if assignment:
         if asset_id:
             assignment.asset_id = asset_id
-        if assigned_to_assignee_id:
-            assignment.assigned_to_assignee_id = assigned_to_assignee_id
-        if floor_id:
-            assignment.floor_id = floor_id
-        if assignment_date:
-            assignment.assignment_date = assignment_date
-        if return_date is not None:
-            assignment.return_date = return_date
+        if assignee_id:
+            assignment.assignee_id = assignee_id
+        if start_date:
+            assignment.start_date = start_date
+        if end_date is not None:
+            assignment.end_date = end_date
+        
         db.session.commit()
         return assignment
+
     return None
 
 def delete_asset_assignment(assignment_id):
@@ -46,5 +78,6 @@ def delete_asset_assignment(assignment_id):
         db.session.delete(assignment)
         db.session.commit()
         return True
+    
     return False
 
