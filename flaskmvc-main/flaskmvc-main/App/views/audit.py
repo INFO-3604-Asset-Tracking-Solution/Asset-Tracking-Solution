@@ -204,3 +204,147 @@ def update_location():
         'message': 'Asset location updated',
         'asset': asset_json
     })
+
+@audit_views.route('/start-audit', methods=['POST'])
+@jwt_required()
+def start_audit():
+    """Start an audit"""
+    data = request.json
+    
+    if not data or 'buildingId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    building_id = data['buildingId']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    audit = start_audit(user_id)
+    
+    if not audit:
+        return jsonify({'success': False, 'message': 'Failed to start audit'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Audit started',
+        'audit': audit.get_json()
+    })
+
+@audit_views.route('/end-audit', methods=['POST'])
+@jwt_required()
+def end_audit():
+    """End an audit"""
+    data = request.json
+    
+    if not data or 'auditId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    audit_id = data['auditId']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    audit = end_audit(audit_id, user_id)
+    
+    if not audit:
+        return jsonify({'success': False, 'message': 'Failed to end audit'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Audit ended',
+        'audit': audit.get_json()
+    })
+
+@audit_views.route('/pause-audit', methods=['POST'])
+@jwt_required()
+def pause_audit():
+    """Pause an audit"""
+    data = request.json
+    
+    if not data or 'auditId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    audit_id = data['auditId']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    audit = pause_audit(audit_id, user_id)
+    
+    if not audit:
+        return jsonify({'success': False, 'message': 'Failed to pause audit'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Audit paused',
+        'audit': audit.get_json()
+    })
+
+@audit_views.route('/resume-audit', methods=['POST'])
+@jwt_required()
+def resume_audit():
+    """Resume an audit"""
+    data = request.json
+    
+    if not data or 'auditId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    audit_id = data['auditId']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    audit = resume_audit(audit_id, user_id)
+    
+    if not audit:
+        return jsonify({'success': False, 'message': 'Failed to resume audit'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Audit resumed',
+        'audit': audit.get_json()
+    })
+
+@audit_views.route('/generate-interim-report', methods=['POST'])
+@jwt_required()
+def generate_interim_report():
+    """Generate an interim audit report"""
+    data = request.json
+    
+    if not data or 'auditId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    audit_id = data['auditId']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    report = generate_interim_report(audit_id, user_id)
+    
+    if not report:
+        return jsonify({'success': False, 'message': 'Failed to generate interim report'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Interim report generated',
+        'report': report.get_json()
+    })
+
+@audit_views.route('/generate-final-report', methods=['POST'])
+@jwt_required()
+def generate_final_report():
+    """Generate a final audit report"""
+    data = request.json
+    
+    if not data or 'auditId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    audit_id = data['auditId']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    report = generate_final_report(audit_id, user_id)
+    
+    if not report:
+        return jsonify({'success': False, 'message': 'Failed to generate final report'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Final report generated',
+        'report': report.get_json()
+    })
