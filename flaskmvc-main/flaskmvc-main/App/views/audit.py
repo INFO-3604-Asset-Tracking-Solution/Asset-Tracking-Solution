@@ -348,3 +348,28 @@ def generate_final_report():
         'message': 'Final report generated',
         'report': report.get_json()
     })
+
+@audit_views.route('/compare-audits', methods=['POST'])
+@jwt_required()
+def compare_audits():
+    """Compare two audits"""
+    data = request.json
+    
+    if not data or 'auditId1' not in data or 'auditId2' not in data:
+        return jsonify({'success': False, 'message': 'Invalid request data'}), 400
+    
+    audit_id1 = data['auditId1']
+    audit_id2 = data['auditId2']
+    
+    # Pass the current user's ID if available
+    user_id = current_user.id if current_user else None
+    comparison = compare_audits(audit_id1, audit_id2, user_id)
+    
+    if not comparison:
+        return jsonify({'success': False, 'message': 'Failed to compare audits'}), 500
+    
+    return jsonify({
+        'success': True,
+        'message': 'Audits compared',
+        'comparison': comparison.get_json()
+    })
