@@ -1,5 +1,5 @@
 from datetime import datetime
-from App.models import Asset
+from App.models import Asset, AssetStatus
 from sqlalchemy.exc import IntegrityError # Import IntegrityError
 from App.database import db
 import csv
@@ -20,12 +20,15 @@ def get_all_assets_json():
 
 def add_asset(asset_id, condition_id, description, brand, model, serial_number, cost, notes, asset_status="Available"): 
     try:
-        status_enum = AssetStatusEnum(asset_status)
+        status = AssetStatus.query.filter_by(status_name = asset_status).first()
+
+        if not status:
+            print(f"Invalid status: {asset_status}")
         
         newAsset = Asset(
             asset_id = asset_id, 
             condition_id = condition_id, 
-            asset_status = status_enum, 
+            status_id = status.status_id, 
             description = description, 
             brand = brand, 
             model = model, 
@@ -88,6 +91,7 @@ def upload_csv(file_path):
 
                 try:
                     status_str = row.get("Status", "Available")
+
                     new_asset = add_asset(
                         asset_id= row["Asset Tag"],
                         condition_id = 1,
@@ -164,10 +168,12 @@ def update_asset_details(asset_id, description, model, brand, serial_number, cos
     asset.last_update = datetime.utcnow() # Automatically update the last_update timestamp
 
     if asset_status:
-        try:
-            asset.asset_status = AssetStatusEnum(asset_status)
-        except ValueError:
-            print(f"Invalid status '{asset_status}' provided. Status Not updated")
+        status = AssetStatus.query.filter_by(status_name = asset_status).first()
+
+        if status:
+            asset.status_id = status.status_id
+        else:
+            print(f"Invalid status '{asset_status}' provided")
 
 
     try:
