@@ -24,7 +24,7 @@ def end_audit(audit_id):
     if audit.status == "COMPLETED":
         return audit
 
-    audit.end_date = datetime.utcnow():
+    audit.end_date = datetime.utcnow()
     audit.status = "COMPLETED"
 
     db.session.commit()

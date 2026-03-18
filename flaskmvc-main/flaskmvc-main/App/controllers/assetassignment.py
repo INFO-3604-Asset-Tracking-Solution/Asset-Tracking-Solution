@@ -1,18 +1,18 @@
-from App.models import AssetAssignment, Asset, Room, Assignee
+from App.models import AssetAssignment, Asset, Room, Employee
 from App.database import db
 from datetime import datetime
 
-def create_asset_assignment(asset_id, assignee_id, room_id):
+def create_asset_assignment(asset_id, employee_id, room_id):
     asset = Asset.query.get(asset_id)
-    assignee = Assignee.query.get(assignee_id)
+    employee = Employee.query.get(employee_id)
     room = Room.query.get(room_id)
 
-    if not asset or not assignee or not room:
+    if not asset or not employee or not room:
         return None
 
     assignment = AssetAssignment(
         asset_id=asset_id,
-        assignee_id=assignee_id,
+        employee_id=employee_id,
         room_id = room_id,
         start_date= datetime.utcnow(),
         end_date = None
@@ -49,19 +49,19 @@ def get_all_asset_assignment_json():
 def get_asset_assignment_by_id(assignment_id):
     return AssetAssignment.query.get(assignment_id)
 
-def get_assignments_by_assignee(assignee_id):
-    return AssetAssignment.query.filter_by(assignee_id = assignee_id).all()
+def get_assignments_by_employee(employee_id):
+    return AssetAssignment.query.filter_by(employee_id = employee_id).all()
 
 def get_assignments_by_asset(asset_id):
     return AssetAssignment.query.filter_by(asset_id = asset_id).all()
 
-def update_asset_assignment(assignment_id, asset_id=None, assignee_id=None, start_date=None, end_date=None):
+def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, start_date=None, end_date=None):
     assignment = get_asset_assignment_by_id(assignment_id)
     if assignment:
         if asset_id:
             assignment.asset_id = asset_id
-        if assignee_id:
-            assignment.assignee_id = assignee_id
+        if employee_id:
+            assignment.employee_id = employee_id
         if start_date:
             assignment.start_date = start_date
         if end_date is not None:
