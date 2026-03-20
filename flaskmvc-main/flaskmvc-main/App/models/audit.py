@@ -1,21 +1,31 @@
 from App.database import db
 from datetime import datetime
+import uuid
+from sqlalchemy import Enum
 
 class Audit(db.Model):
     __tablename__ = 'audit'
 
-    id = db.Column(db.String(30), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     initiator_id = db.Column(db.String(30), db.ForeignKey('user.user_id'), nullable=False)
     start_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     end_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), nullable=False)
+    status = db.Column(Enum('pending', 'in_progress', 'completed', name='audit_status'), nullable=False)
 
     relocations = db.relationship('Relocation', backref='audit', lazy=True)
     missing_devices = db.relationship('MissingDevice', backref='audit', lazy=True)
 
-    def __init__(self, id, initiator_id, status, start_date=None, end_date=None):
-        self.id = id
+    def __init__(self, initiator_id, status, start_date=None, end_date=None):
         self.initiator_id = initiator_id
         self.status = status
         self.start_date = start_date if start_date else datetime.utcnow()
         self.end_date = end_date
+
+    def get_json(self):
+        return {
+            'id': self.id,
+            'initiator_id': self.initiator_id,
+            'start_date': self.start_date,
+            'end_date': self.end_date,
+            'status': self.status
+        }
