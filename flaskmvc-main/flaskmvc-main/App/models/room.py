@@ -4,7 +4,7 @@ class Room(db.Model):
 
     __tablename__ = "room"
 
-    room_id = db.Column(db.String(30), primary_key=True)
+    room_id = db.Column(db.Integer, primary_key=True)
     floor_id = db.Column(db.String(30), db.ForeignKey('floor.floor_id'), nullable=False)
     building_id = db.Column(db.String(30), db.ForeignKey('building.building_id'), nullable=False)
     room_name = db.Column(db.String(50), nullable=False)
@@ -13,7 +13,7 @@ class Room(db.Model):
     checkevents = db.relationship('CheckEvent', backref='room', lazy=True)
 
 
-    def __init__(self, room_id, floor_id, room_name):
+    def __init__(self, room_id, floor_id, building_id,room_name):
         self.room_id = room_id
         self.floor_id = floor_id
         self.building_id = building_id

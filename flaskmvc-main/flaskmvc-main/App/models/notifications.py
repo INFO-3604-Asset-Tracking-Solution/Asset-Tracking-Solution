@@ -1,21 +1,30 @@
 from App.database import db
 from datetime import datetime
+import uuid
 
 class Notification(db.Model):
     __tablename__ = 'notification'
 
-    notif_id = db.Column(db.String(30), primary_key=True)
-    check_id = db.Column(db.String(30), db.ForeignKey('check_event.check_event_id'), nullable=False)
-    recipient_id = db.Column(db.String(30), db.ForeignKey('user.user_id'), nullable=False)
+    notif_id = db.Column(db.String(30), primary_key=True, default=lambda: str(uuid.uuid4()))
+    audit_id = db.Column(db.Integer, db.ForeignKey('audit.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     recipient = db.relationship('User', backref='notifications', lazy=True)
-    check_event = db.relationship('CheckEvent', backref='notifications', lazy=True)
+    audit = db.relationship('Audit', backref='notifications', lazy=True)
 
-    def __init__(self, notif_id, check_id, recipient_id, message, timestamp=None):
-        self.notif_id = notif_id
-        self.check_id = check_id
+    def __init__(self, audit_id, recipient_id, message, timestamp=None):
+        self.audit_id = audit_id
         self.recipient_id = recipient_id
         self.message = message
         self.timestamp = timestamp if timestamp else datetime.utcnow()
+
+    def get_json(self):
+        return {
+            'notif_id': self.notif_id,
+            'audit_id': self.audit_id,
+            'recipient_id': self.recipient_id,
+            'message': self.message,
+            'timestamp': self.timestamp
+        }

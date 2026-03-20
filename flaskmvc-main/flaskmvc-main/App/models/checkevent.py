@@ -6,7 +6,7 @@ class CheckEvent(db.Model):
 
     __tablename__ = "checkevent"
 
-    check_id = db.Column(db.String, primary_key=True, nullable=False, unique=True)
+    check_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     audit_id = db.Column(db.String, db.ForeignKey('audit.audit_id'), nullable=False)
     asset_id = db.Column(db.String, db.ForeignKey('asset.asset_id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.user_id'), nullable=False)
