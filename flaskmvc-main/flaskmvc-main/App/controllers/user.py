@@ -4,15 +4,15 @@ from App.models import User
 from App.database import db
 from werkzeug.security import generate_password_hash
 
-def create_user(email, username, password, user_type):
+def create_user(email, username, password, role):
     # Check if email already exists
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         return None
 
-    valid_types = ["Manager", "Administrator", "Auditor"]
+    valid_roles = ["Manager", "Administrator", "Auditor"]
     
-    if user_type not in valid_types:
+    if role not in valid_roles:
         return None
 
     # Create new user
@@ -20,7 +20,7 @@ def create_user(email, username, password, user_type):
         email=email, 
         username=username, 
         password=password,
-        user_type = user_type
+        role = role
     )
     
     try:
@@ -52,7 +52,7 @@ def get_all_users_json():
     users = [user.get_json() for user in users]
     return users
 
-def update_user(user_id, email, username, new_password=None, user_type = None):
+def update_user(user_id, email, username, new_password=None, role = None):
     try:
         # Convert user_id to integer if it's a string
         if isinstance(user_id, str) and user_id.isdigit():
@@ -61,10 +61,6 @@ def update_user(user_id, email, username, new_password=None, user_type = None):
         # Try to get the user directly by user_id
         user = User.query.get(user_id)
         
-        # If that fails, try filter_by
-        if not user:
-            user = User.query.get(user_id)
-            
         if not user:
             return None
             
@@ -75,10 +71,10 @@ def update_user(user_id, email, username, new_password=None, user_type = None):
         #Update user type
         valid_types = ["Manager", "Administrator", "Auditor"]
 
-        if user_type:
-            if user_type not in valid_types:
+        if role:
+            if role not in valid_types:
                 return None
-            user.user_type = user_type
+            user.role = role
         
         # Update password if provided
         if new_password:
