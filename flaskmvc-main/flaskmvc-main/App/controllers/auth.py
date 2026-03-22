@@ -14,7 +14,7 @@ def setup_jwt(app):
     def user_identity_lookup(identity):
         user = User.query.filter_by(email=identity).one_or_none()
         if user:
-            return str(user.id)  # Ensure the identity is a string
+            return str(user.user_id)  # Ensure the identity is a string
         return None
 
     @jwt.user_lookup_loader

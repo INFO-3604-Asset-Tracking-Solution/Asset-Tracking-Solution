@@ -7,7 +7,7 @@ def create_employee(first_name, last_name=None, email=None):
         print(f"Warning: Email {email} already exists. Cannot create duplicate.")
         return None
 
-    new_employee = Employee(first_name=first_name, last_name=last_name, email=email)
+    new_employee = Employee(fname=first_name, lname=last_name, email=email)
 
     try:
         db.session.add(new_employee)
