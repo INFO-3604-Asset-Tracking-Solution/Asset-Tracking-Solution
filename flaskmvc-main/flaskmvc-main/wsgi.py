@@ -108,15 +108,18 @@ Test Commands
 
 test = AppGroup('test', help='Testing commands') 
 
-@test.command("user", help="Run User tests")
-@click.argument("type", default="all")
-def user_tests_command(type):
-    if type == "unit":
-        sys.exit(pytest.main(["-k", "UserUnitTests"]))
-    elif type == "int":
-        sys.exit(pytest.main(["-k", "UserIntegrationTests"]))
+@test.command("run", help="Run tests by type or module")
+@click.argument("category", default="all")
+def user_tests_command(category):
+    if category == "unit":
+        args = ["App/tests/unit"]
+    elif category == "int":
+        args = ["App/tests/integration"]
+    elif category in ["user", "asset", "assignee", "location_hierarchy", "asset_assignment", "scanevent"]:
+        args = [f"App/tests/integration/test_int_{category}.py"]
     else:
-        sys.exit(pytest.main(["-k", "App"]))
+        args = ["App/tests"]
+    pytest.main(args + ["-v"])
     
 
 app.cli.add_command(test)
