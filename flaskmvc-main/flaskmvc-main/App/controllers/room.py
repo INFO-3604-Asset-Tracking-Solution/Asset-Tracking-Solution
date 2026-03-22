@@ -1,14 +1,13 @@
 from App.models import Room
 from App.database import db
 
-def create_room(room_id, floor_id, building_id, room_name):
+def create_room(floor_id, building_id, room_name):
 
-    existing_room = Room.query.filter_by(room_id = room_id).first()
+    existing_room = Room.query.filter_by(floor_id=floor_id, building_id=building_id, room_name=room_name).first()
     if existing_room:
         return None
     
     new_room = Room(
-        room_id=room_id, 
         floor_id=floor_id, 
         building_id = building_id,
         room_name=room_name

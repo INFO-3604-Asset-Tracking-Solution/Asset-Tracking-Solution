@@ -1,13 +1,16 @@
 from App.database import db
 from datetime import datetime
-import uuid
 from sqlalchemy import Enum
+from nanoid import generate
+
+def generate_short_id():
+    return generate(size=8)
 
 class Audit(db.Model):
     __tablename__ = 'audit'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    initiator_id = db.Column(db.String(30), db.ForeignKey('user.user_id'), nullable=False)
+    audit_id = db.Column(db.String(30), primary_key=True, default=generate_short_id)
+    initiator_id = db.Column(db.Integer, db.ForeignKey('user.user_id'), nullable=False)
     start_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     end_date = db.Column(db.DateTime, nullable=True)
     status = db.Column(Enum('pending', 'in_progress', 'completed', name='audit_status'), nullable=False)

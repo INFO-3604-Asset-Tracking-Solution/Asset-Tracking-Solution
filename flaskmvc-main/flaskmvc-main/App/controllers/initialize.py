@@ -8,7 +8,7 @@ from App.controllers.room import *
 from App.controllers.missingdevices import *
 from App.controllers.relocation import *
 from App.controllers.checkevent import *
-from App.controllers.notifications import *
+from App.controllers.notification import *
 from App.models import Employee
 from datetime import datetime
 from App.database import db
@@ -51,8 +51,10 @@ def initialize():
         # Make sure these use IDs that don't conflict if hardcoded (e.g., use strings '1', '2' if IDs are strings)
        
         print("Adding default rooms...")
-        create_room( "1", "Asset Room: 101")
-        create_room( "2", "Asset Room: 201")
+        create_room( "Floor 1", "Building A", "Asset Room: 101")
+        create_room( "Floor 2", "Building A", "Asset Room: 201")
+        # create_room( "1", "Asset Room: 101")
+        # create_room( "2", "Asset Room: 201")
         print("Default rooms added.")
 
         print("Ensuring default values...")
@@ -96,13 +98,14 @@ def ensure_defaults():
         return
     
     # Create unknown room if it doesn't exist
-    unknown_room_id = "UNKNOWN"
-    unknown_room = get_room(unknown_room_id)
+    # unknown_room_id = "UNKNOWN"
+    # unknown_room = get_room(unknown_room_id)
 
-    if not unknown_room:
-        unknown_room = create_room(unknown_room_id, "Unknown Room")
-        print(f"Created unknown room: {unknown_room_id}")
+    # if not unknown_room:
+    #     unknown_room = create_room(unknown_room_id, "Unknown Room")
+    #     print(f"Created unknown room: {unknown_room_id}")
     
-    return {
-        "room": unknown_room
-    }
+    # return {
+    #     "room": unknown_room
+    # }
+    return {}

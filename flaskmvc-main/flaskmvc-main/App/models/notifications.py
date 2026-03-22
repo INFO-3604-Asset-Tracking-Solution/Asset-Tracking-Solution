@@ -5,14 +5,14 @@ import uuid
 class Notification(db.Model):
     __tablename__ = 'notification'
 
-    notif_id = db.Column(db.String(30), primary_key=True, default=lambda: str(uuid.uuid4()))
-    audit_id = db.Column(db.Integer, db.ForeignKey('audit.id'), nullable=False)
-    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    notif_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    audit_id = db.Column(db.String(30), db.ForeignKey('audit.audit_id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.user_id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    recipient = db.relationship('User', backref='notifications', lazy=True)
-    audit = db.relationship('Audit', backref='notifications', lazy=True)
+    # recipient = db.relationship('User', backref='notifications', lazy=True)
+    # audit = db.relationship('Audit', backref='notifications', lazy=True)
 
     def __init__(self, audit_id, recipient_id, message, timestamp=None):
         self.audit_id = audit_id

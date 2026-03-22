@@ -1,16 +1,9 @@
 
 from flask import Blueprint, render_template, jsonify, request, send_file
 from flask_jwt_extended import jwt_required, current_user
-from App.controllers.asset import get_all_assets_by_room_id, get_all_assets_json, upload_csv
+from App.controllers.asset import  get_all_assets_json, upload_csv
 from App.controllers.user import update_user
-from App.controllers.building import (
-    create_building, get_building, get_all_building_json, 
-    edit_building, delete_building
-)
-from App.controllers.floor import (
-    create_floor, get_floor, get_floors_by_building,
-    update_floor, delete_floor
-)
+
 from App.controllers.room import (
     create_room, get_room, get_rooms_by_floor,
     update_room, delete_room

@@ -1,18 +1,9 @@
 import click, pytest, sys
-from flask import Flask
-from flask.cli import with_appcontext, AppGroup
-from datetime import datetime
-
+from flask.cli import AppGroup
 from App.database import db, get_migrate
-from App.models import User
 from App.controllers.asset import *
 from App.controllers.assetassignment import *
-from App.controllers.assignee import *
-from App.controllers.building import *
-from App.controllers.floor import *
-from App.controllers.provider import *
 from App.controllers.room import *
-from App.controllers.scanevent import *
 from App.main import create_app
 from App.controllers import ( create_user, get_all_users_json, get_all_users, initialize )
 
@@ -89,15 +80,6 @@ def add_asset_command(id, description, model, brand, serial_number, room_id, las
     else:
         print(f'{asset} created!')
         
-        
-@asset_cli.command("list_id", help="Lists assets with a ceratain id")
-@click.argument("room_id", default="string")
-def list_user_command(format):
-    if format == 'string':
-        print(get_all_assets_by_room_id())
-    else:
-        print(get_all_assets_by_room_json())
-
 
 
 app.cli.add_command(asset_cli) # add the group to the cli

@@ -12,11 +12,7 @@ from App.controllers.asset import(
     get_all_assets_json, get_all_assets_by_room_id,
     add_asset, set_last_located,set_status, upload_csv
 )
-from App.controllers.scanevent import(
-    add_scan_event, get_all_scans,
-    get_scan_event, get_scans_by_status,
-    get_scans_by_last_update, get_scans_by_changelog
-)
+
 from App.main import create_app
 from App.database import db, create_db
 from App.models import User
@@ -28,7 +24,6 @@ from App.controllers import (
     get_user_by_username,
     update_user
 )
-from App.controllers.assignee import create_assignee, get_assignee_by_id, update_assignee
 from App.controllers.assetassignment import (
     create_asset_assignment, get_asset_assignment_by_id,
     update_asset_assignment, delete_asset_assignment
