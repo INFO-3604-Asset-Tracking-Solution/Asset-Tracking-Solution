@@ -1,12 +1,16 @@
 from App.database import db
 from sqlalchemy import Numeric
+from nanoid import generate
+
+def generate_short_id():
+    return generate(size=8)
 
 class Asset(db.Model):
 
     __tablename__ = "asset"
 
-    asset_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    description = db.Column(db.String(200), nullable=True)
+    asset_id = db.Column(db.String(50), primary_key=True, default=generate_short_id)
+    description = db.Column(db.String(200), nullable=True) 
     brand = db.Column(db.String(120), nullable=True)
     model = db.Column(db.String(120), nullable=True)
     serial_number = db.Column(db.String(50), nullable=True)
