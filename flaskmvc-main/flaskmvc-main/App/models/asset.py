@@ -22,7 +22,8 @@ class Asset(db.Model):
     checkevents = db.relationship('CheckEvent', backref='asset', lazy=True)
     assignments = db.relationship('AssetAssignment', backref='asset', lazy=True)
 
-    def __init__(self, description, brand=None, model=None, serial_number=None, status_id=None, cost=None, notes=None):
+    def __init__(self, asset_id, description, brand=None, model=None, serial_number=None, status_id=None, cost=None, notes=None, last_update=None):
+        self.asset_id = asset_id
         self.description = description
         self.brand = brand
         self.model = model
@@ -30,6 +31,7 @@ class Asset(db.Model):
         self.status_id = status_id
         self.cost = cost
         self.notes = notes
+        self.last_update = last_update
 
     def get_json(self):
         return {

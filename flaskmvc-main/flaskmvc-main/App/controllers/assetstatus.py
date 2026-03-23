@@ -1,13 +1,13 @@
 from App.models import AssetStatus
 from App.database import db
 
-def create_asset_status(status_name, description=None):
+def create_asset_status(status_name):
     existing_status = AssetStatus.query.filter_by(status_name=status_name).first()
     if existing_status:
         print(f"Warning: Asset status {status_name} already exists. Cannot create duplicate.")
         return None
 
-    new_asset_status = AssetStatus(status_name, description)
+    new_asset_status = AssetStatus(status_name)
 
     try:
         db.session.add(new_asset_status)
