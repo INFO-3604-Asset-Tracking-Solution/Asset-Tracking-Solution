@@ -1,13 +1,13 @@
 from App.models import AssetStatus
 from App.database import db
 
-def create_asset_status(status_name, description=None):
+def create_asset_status(status_name):
     existing_status = AssetStatus.query.filter_by(status_name=status_name).first()
     if existing_status:
         print(f"Warning: Asset status {status_name} already exists. Cannot create duplicate.")
         return None
 
-    new_asset_status = AssetStatus(status_name, description)
+    new_asset_status = AssetStatus(status_name)
 
     try:
         db.session.add(new_asset_status)
@@ -43,12 +43,12 @@ def get_all_asset_statuses_json():
     return asset_statuses
 
 
-def update_asset_status(status_id, status_name, description=None):
+def update_asset_status(status_id, status_name):
     asset_status = get_asset_status_by_id(status_id)
 
     if asset_status:
         asset_status.status_name = status_name
-        asset_status.description = description
+        
 
         try:
             db.session.commit()

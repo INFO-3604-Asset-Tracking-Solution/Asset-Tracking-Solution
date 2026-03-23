@@ -19,16 +19,21 @@ class CheckEvent(db.Model):
         Enum('Good', 'Needs Repair', 'Beyond Repair', name='condition_enum'),
         nullable=False
     )
+    status = db.Column(
+        Enum('found', 'missing', 'relocated', 'pending relocation', 'lost', name='check_event_status'),
+        nullable=False
+    )
 
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
-    def __init__(self, audit_id, asset_id, user_id, found_room_id, condition):
+    def __init__(self, audit_id, asset_id, user_id, found_room_id, condition, status):
         self.audit_id = audit_id
         self.asset_id = asset_id
         self.user_id = user_id
         self.found_room_id = found_room_id
         self.condition = condition
+        self.status = status
 
 
     def get_json(self):
@@ -39,5 +44,6 @@ class CheckEvent(db.Model):
             "user_id": self.user_id,
             "found_room_id": self.found_room_id,
             "condition": self.condition,
+            "status": self.status,
             "timestamp": self.timestamp
         }

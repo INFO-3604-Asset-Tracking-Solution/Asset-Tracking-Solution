@@ -11,28 +11,28 @@ inventory_views = Blueprint('inventory_views', __name__, template_folder='../tem
 def inventory_page():
     return render_template('inventory.html')
 
-# @inventory_views.route('/api/assets', methods=['GET'])
-# @jwt_required()
-# def get_assets():
-#     assets = get_all_assets_json()
-#     for asset in assets:
-#         if asset.get('room_id'):
-#             room = get_room(asset['room_id'])
-#             if room:
-#                 asset['room_name'] = room.room_name
-#             else:
-#                 asset['room_name'] = f"Room {asset['room_id']}"
-#         else:
-#             asset['room_name'] = "Unknown"
-#         if asset.get('assignee_id'):
-#             assignee = get_assignee_by_id(asset['assignee_id'])
-#             if assignee:
-#                 asset['assignee_name'] = str(assignee) # Use __str__
-#             else:
-#                 asset['assignee_name'] = f"Assignee ID: {asset['assignee_id']}"
-#         else:
-#             asset['assignee_name'] = "Unassigned"
-#     return jsonify(assets)
+@inventory_views.route('/api/assets', methods=['GET'])
+@jwt_required()
+def get_assets():
+    assets = get_all_assets_json()
+    # for asset in assets:
+    #     if asset.get('room_id'):
+    #         room = get_room(asset['room_id'])
+    #         if room:
+    #             asset['room_name'] = room.room_name
+    #         else:
+    #             asset['room_name'] = f"Room {asset['room_id']}"
+    #     else:
+    #         asset['room_name'] = "Unknown"
+    #     if asset.get('assignee_id'):
+    #         assignee = get_assignee_by_id(asset['assignee_id'])
+    #         if assignee:
+    #             asset['assignee_name'] = str(assignee) # Use __str__
+    #         else:
+    #             asset['assignee_name'] = f"Assignee ID: {asset['assignee_id']}"
+    #     else:
+    #         asset['assignee_name'] = "Unassigned"
+    return jsonify(assets)
 
 # @inventory_views.route('/asset/<asset_id>', methods=['GET'])
 # @jwt_required()

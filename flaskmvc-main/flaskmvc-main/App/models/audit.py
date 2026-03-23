@@ -26,7 +26,7 @@ class Audit(db.Model):
 
     def get_json(self):
         return {
-            'id': self.id,
+            'audit_id': self.audit_id,
             'initiator_id': self.initiator_id,
             'start_date': self.start_date,
             'end_date': self.end_date,

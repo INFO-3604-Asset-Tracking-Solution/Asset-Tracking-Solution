@@ -18,7 +18,7 @@ def get_all_assets_json():
     assets = [asset.get_json() for asset in assets]
     return assets
 
-def add_asset(asset_id, condition_id, description, brand, model, serial_number, cost, notes, asset_status="Available"): 
+def add_asset(asset_id, description, brand, model, serial_number, cost, notes, asset_status="Available"): 
     try:
         status = AssetStatus.query.filter_by(status_name = asset_status).first()
 
@@ -27,8 +27,7 @@ def add_asset(asset_id, condition_id, description, brand, model, serial_number, 
         
         newAsset = Asset(
             asset_id = asset_id, 
-            condition_id = condition_id, 
-            status_id = status.status_id, 
+            status_id = status.status_id if status else None, 
             description = description, 
             brand = brand, 
             model = model, 
@@ -94,14 +93,13 @@ def upload_csv(file_path):
 
                     new_asset = add_asset(
                         asset_id= row["Asset Tag"],
-                        condition_id = 1,
                         asset_status = status_str,
                         description= row["Item"],
                         model=row["Model"],
                         brand=row["Brand"],
                         serial_number=row["Serial Number"],
                         cost = float(row["Cost"]) if row["Cost"] else None,
-                        notes= None
+                        notes= row.get("Notes", None)
                     )
 
                     if new_asset:
