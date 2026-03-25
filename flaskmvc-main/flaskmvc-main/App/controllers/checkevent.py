@@ -3,7 +3,7 @@ from App.database import db
 from datetime import datetime
 
 
-def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id):
+def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id, status='found'):
 
     audit = Audit.query.get(audit_id)
     asset = Asset.query.get(asset_id)
@@ -11,7 +11,7 @@ def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id)
     if not audit or not asset:
         return None
 
-    if audit.status == "COMPLETED":
+    if audit.status == "completed":
         return None
 
     check_event = CheckEvent(
@@ -19,8 +19,8 @@ def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id)
         asset_id=asset_id,
         user_id=user_id,
         found_room_id=found_room_id,
-        condition_id=condition_id,
-        timestamp=datetime.utcnow()
+        condition=condition_id,
+        status=status
     )
 
     db.session.add(check_event)

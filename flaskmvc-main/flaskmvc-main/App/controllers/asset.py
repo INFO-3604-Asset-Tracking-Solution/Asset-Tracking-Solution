@@ -99,7 +99,7 @@ def upload_csv(file_path):
                         brand=row["Brand"],
                         serial_number=row["Serial Number"],
                         cost = float(row["Cost"]) if row["Cost"] else None,
-                        notes= None
+                        notes= row.get("Notes", None)
                     )
 
                     if new_asset:

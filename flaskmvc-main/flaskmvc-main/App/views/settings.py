@@ -4,10 +4,7 @@ from flask_jwt_extended import jwt_required, current_user
 from App.controllers.asset import  get_all_assets_json, upload_csv
 from App.controllers.user import update_user
 
-from App.controllers.room import (
-    create_room, get_room, get_rooms_by_floor,
-    update_room, delete_room
-)
+from App.controllers.room import *
 import os
 import csv
 import io
@@ -466,6 +463,7 @@ def delete_building_endpoint(building_id):
 @jwt_required()
 def get_building_floors(building_id):
     floors = get_floors_by_building(building_id)
+    print(floors)
     if not floors:
         return jsonify([])
     floors_json = [floor.get_json() for floor in floors]

@@ -43,12 +43,12 @@ def get_all_asset_statuses_json():
     return asset_statuses
 
 
-def update_asset_status(status_id, status_name, description=None):
+def update_asset_status(status_id, status_name):
     asset_status = get_asset_status_by_id(status_id)
 
     if asset_status:
         asset_status.status_name = status_name
-        asset_status.description = description
+        
 
         try:
             db.session.commit()

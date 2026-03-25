@@ -82,3 +82,26 @@ def delete_room(room_id):
         db.session.rollback()
         print(f"Error deleting room: {e}")
         return False
+
+def get_all_buildings():
+    buildings = Room.query.distinct(Room.building_id).all()
+    return buildings
+
+def get_all_floors():
+    floors = Room.query.distinct(Room.floor_id).all()
+    return floors
+
+def get_all_building_json():
+    buildings = get_all_buildings()
+    return [building.get_json() for building in buildings]
+
+def get_all_floors_json():
+    floors = get_all_floors()
+    return [floor.get_json() for floor in floors]
+
+def get_floors_by_building(building_id):
+    floors = Room.query.filter_by(building_id=building_id).distinct(Room.floor_id).all()
+    return [floor for floor in floors]
+
+def get_building(building_id):
+    return Room.query.filter_by(building_id=building_id).first()

@@ -14,6 +14,7 @@ class AssetAssignment(db.Model):
     room_id = db.Column(db.Integer, db.ForeignKey('room.room_id'), nullable=False)
     assignment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     return_date = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.Enum('in_use', 'returned', name='assignment_status'), default='in_use', nullable=False)
     
     # asset = db.relationship('Asset', backref='assignments', lazy=True)
     employee = db.relationship('Employee', backref='assignments', lazy=True)
@@ -26,6 +27,7 @@ class AssetAssignment(db.Model):
 
         self.assignment_date = assignment_date if assignment_date else datetime.utcnow()
         self.return_date = return_date
+        self.status = 'returned' if return_date else 'in_use'
 
     def get_json(self):
         return {
@@ -34,7 +36,8 @@ class AssetAssignment(db.Model):
             'employee_id': self.employee_id,
             'room_id': self.room_id,
             'assignment_date': self.assignment_date,
-            'return_date': self.return_date
+            'return_date': self.return_date,
+            'status': self.status
         }
 
     def __repr__(self):

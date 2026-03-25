@@ -1,0 +1,327 @@
+{% extends "layout.html" %}
+
+{% set active_page = 'audit' %}
+
+{% block title %}iGOVTT - Audit Dashboard{% endblock %}
+
+{% block page_css %}
+<style>
+    .audit-summary-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 24px;
+        border: none;
+    }
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    .status-found { background-color: #d1e7dd; color: #0f5132; }
+    .status-missing { background-color: #ffe6e6; color: #cc0000; }
+    .status-relocated { background-color: #cfe2ff; color: #084298; }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-lost { background-color: #e2e3e5; color: #41464b; }
+    
+    .phase-indicator {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+    .phase-indicator::before {
+        content: '';
+        position: absolute;
+        top: 24px;
+        left: 50px;
+        right: 50px;
+        height: 2px;
+        background-color: #e9ecef;
+        z-index: 0;
+    }
+    .phase-step {
+        text-align: center;
+        position: relative;
+        z-index: 1;
+        width: 100px;
+    }
+    .phase-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #f8f9fa;
+        border: 2px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-size: 1.2rem;
+        color: #6c757d;
+    }
+    .phase-step.active .phase-icon {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+    .phase-step.completed .phase-icon {
+        background-color: #198754;
+        border-color: #198754;
+        color: white;
+    }
+    .phase-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Audit Overview Dashboard <span class="text-muted fs-5">#{{ audit.audit_id }}</span></h2>
+    <div>
+        <a href="/audit-list" class="btn btn-outline-secondary me-2"><i class="bi bi-arrow-left"></i> Back</a>
+        <button id="endAuditBtn" class="btn btn-primary" onclick="AuditDashboard.endAudit('{{ audit.audit_id }}')" {% if audit.status == 'completed' %}disabled{% endif %}>
+            <i class="bi bi-check2-circle"></i> Complete Audit
+        </button>
+    </div>
+</div>
+
+<!-- Phases Indicator -->
+<div class="card audit-summary-card mb-4">
+    <div class="card-body p-4 p-md-5">
+        <h5 class="card-title fw-semibold mb-4 text-center">Audit Workflow Phases</h5>
+        <div class="phase-indicator">
+            <div class="phase-step completed">
+                <div class="phase-icon"><i class="bi bi-play-fill"></i></div>
+                <div class="phase-label">Phase 1<br><small class="text-muted fw-normal">Initiate & Check</small></div>
+            </div>
+            <div class="phase-step {% if audit.status != 'completed' %}active{% else %}completed{% endif %}">
+                <div class="phase-icon"><i class="bi bi-arrow-left-right"></i></div>
+                <div class="phase-label">Phase 2<br><small class="text-muted fw-normal">Relocations</small></div>
+            </div>
+            <div class="phase-step {% if audit.status == 'completed' %}active{% endif %}">
+                <div class="phase-icon"><i class="bi bi-clipboard-x"></i></div>
+                <div class="phase-label">Phase 3<br><small class="text-muted fw-normal">Finalize & Lost</small></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Audit Stats -->
+    <div class="col-md-4 mb-4">
+        <div class="card audit-summary-card h-100">
+            <div class="card-body">
+                <h5 class="card-title fw-semibold"><i class="bi bi-info-circle text-primary"></i> Audit Info</h5>
+                <hr>
+                <p class="mb-2"><strong>Status:</strong> 
+                    <span class="badge {% if audit.status == 'completed' %}bg-success{% else %}bg-primary{% endif %}">
+                        {{ audit.status|title }}
+                    </span>
+                </p>
+                <p class="mb-2"><strong>Start Date:</strong> {{ audit.start_date.strftime('%Y-%m-%d %H:%M') if audit.start_date else 'N/A' }}</p>
+                <p class="mb-2"><strong>End Date:</strong> {{ audit.end_date.strftime('%Y-%m-%d %H:%M') if audit.end_date else 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Breakdown -->
+    <div class="col-md-8 mb-4">
+        <div class="card audit-summary-card h-100">
+            <div class="card-body">
+                <h5 class="card-title fw-semibold"><i class="bi bi-pie-chart text-primary"></i> Event Overview</h5>
+                <hr>
+                <div id="checkEventsContainer">
+                    <p class="text-center text-muted my-4"><i class="bi bi-arrow-repeat fs-4 spinner-border spinner-border-sm" role="status"></i> Loading dynamic statuses...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card audit-summary-card mb-4">
+    <div class="card-body">
+        <h5 class="card-title fw-semibold mb-3"><i class="bi bi-geo-alt text-warning"></i> Pending Relocations</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Asset ID</th>
+                        <th>Found In Room</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="pendingRelocationsTable">
+                    <tr><td colspan="3" class="text-center text-muted">Loading pending relocations...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Missing as Lost -->
+<div class="card audit-summary-card">
+    <div class="card-body">
+        <h5 class="card-title fw-semibold mb-3"><i class="bi bi-exclamation-triangle text-danger"></i> Missing / Lost Devices</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Assignment ID</th>
+                        <th>Date Reported</th>
+                        <th>Audit Status</th>
+                    </tr>
+                </thead>
+                <tbody id="missingTable">
+                    <tr><td colspan="3" class="text-center text-muted">Loading missing devices...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AuditDashboard = {
+    auditId: '{{ audit.audit_id }}',
+    statusMap: {
+        'found': '<span class="status-badge status-found">Found</span>',
+        'missing': '<span class="status-badge status-missing">Missing</span>',
+        'relocated': '<span class="status-badge status-relocated">Relocated</span>',
+        'pending relocation': '<span class="status-badge status-pending">Pending Reloc.</span>',
+        'lost': '<span class="status-badge status-lost">Lost</span>'
+    },
+    
+    init() {
+        this.loadEventOverview();
+        this.loadRelocations();
+        this.loadMissing();
+    },
+    
+    async loadEventOverview() {
+        try {
+            const resp = await fetch(`/api/audit/${this.auditId}/checkevents`);
+            const events = await resp.json();
+            
+            if (!events || events.length === 0) {
+                document.getElementById('checkEventsContainer').innerHTML = '<p class="text-muted text-center my-3">No check events recorded yet.</p>';
+                return;
+            }
+            
+            let statusCounts = {'found': 0, 'missing': 0, 'relocated': 0, 'pending relocation': 0, 'lost': 0};
+            let tableHtml = `<div class="table-responsive"><table class="table table-sm text-center"><thead><tr>`;
+            
+            Object.keys(statusCounts).forEach(s => { tableHtml += `<th>${s.toUpperCase()}</th>`; });
+            tableHtml += `</tr></thead><tbody><tr>`;
+            
+            events.forEach(e => {
+                if(statusCounts[e.status] !== undefined) statusCounts[e.status]++;
+            });
+            
+            Object.entries(statusCounts).forEach(([status, count]) => {
+                tableHtml += `<td><div class="fs-4 fw-bold">${count}</div>${this.statusMap[status] || status}</td>`;
+            });
+            
+            tableHtml += `</tr></tbody></table></div>`;
+            document.getElementById('checkEventsContainer').innerHTML = tableHtml;
+            
+        } catch (e) {
+            document.getElementById('checkEventsContainer').innerHTML = '<p class="text-danger">Error loading events.</p>';
+        }
+    },
+    
+    async loadRelocations() {
+        try {
+            const resp = await fetch(`/api/audit/${this.auditId}/checkevents?status=pending relocation`);
+            const events = await resp.json();
+            const tbody = document.getElementById('pendingRelocationsTable');
+            
+            if (!events || events.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No pending relocations detected.</td></tr>';
+                return;
+            }
+            
+            let h = '';
+            events.forEach(e => {
+                h += `<tr>
+                    <td><strong>${e.asset_id}</strong></td>
+                    <td>Room ${e.found_room_id}</td>
+                    <td><button class="btn btn-sm btn-outline-primary" onclick="AuditDashboard.resolveRelocation('${e.check_id}', '${e.found_room_id}')">Resolve to Found</button></td>
+                </tr>`;
+            });
+            tbody.innerHTML = h;
+            
+        } catch (e) {
+            document.getElementById('pendingRelocationsTable').innerHTML = '<tr><td colspan="3" class="text-danger">Error loading data.</td></tr>';
+        }
+    },
+    
+    async loadMissing() {
+        try {
+            // Need an endpoint for missing
+            const resp = await fetch(`/api/audit/${this.auditId}/missing`);
+            const missings = await resp.json();
+            const tbody = document.getElementById('missingTable');
+            
+            if (!missings || missings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No missing devices for this audit.</td></tr>';
+                return;
+            }
+            
+            let h = '';
+            missings.forEach(m => {
+                let badge = m.found_relocation_id ? '<span class="status-badge status-relocated">Relocated/Found</span>' : '<span class="status-badge status-missing">Missing / Lost</span>';
+                h += `<tr>
+                    <td>${m.assignment_id}</td>
+                    <td>${m.date}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = h;
+            
+        } catch (e) {
+            document.getElementById('missingTable').innerHTML = '<tr><td colspan="3" class="text-danger">Error loading data.</td></tr>';
+        }
+    },
+    
+    async resolveRelocation(checkId, foundRoomId) {
+        try {
+            const res = await fetch(`/api/checkevent/${checkId}/resolve`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'relocate' })
+            });
+            
+            if (res.ok) {
+                alert('Relocation resolved! Item status set to relocated/found.');
+                this.init(); // reload data
+            } else {
+                alert('Failed to resolve relocation.');
+            }
+        } catch(e) { console.error(e); }
+    },
+    
+    async endAudit() {
+        if(!confirm("Are you sure you want to end this audit? This will mark all remaining missing items as 'lost'.")) return;
+        try {
+            const res = await fetch('/end-audit', { method: 'POST' });
+            if (!res.ok) {
+                const data = await res.json();
+                alert(data.message || 'Cannot close audit. Are there pending relocations?');
+            } else {
+                alert('Audit completed successfully.');
+                window.location.reload();
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Failed to end audit.');
+        }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => { AuditDashboard.init(); });
+</script>
+{% endblock %}

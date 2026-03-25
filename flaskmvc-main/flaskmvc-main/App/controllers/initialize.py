@@ -37,9 +37,9 @@ def initialize():
     try:
         print("Adding default users...")
         # Ensure this doesn't fail
-        create_user('admin@gmail.com', 'Admin User', 'adminpass', 'Administrator')
-        create_user('manager@gmail.com', 'Manager User', 'managerpass', 'Manager')
-        create_user('auditor@gmail.com', 'Auditor User', 'auditorpass', 'Auditor')
+        user1 = create_user('admin@gmail.com', 'Admin User', 'adminpass', 'Administrator')
+        user2 = create_user('manager@gmail.com', 'Manager User', 'managerpass', 'Manager')
+        user3 = create_user('auditor@gmail.com', 'Auditor User', 'auditorpass', 'Auditor')
         print("Default users added.")
 
         print("Adding default employees...")
@@ -60,6 +60,22 @@ def initialize():
         print("Ensuring default values...")
         ensure_defaults()
         
+        print("Adding default asset statuses...")
+        create_asset_status("Good")
+        create_asset_status("Missing")
+        create_asset_status("Misplaced")
+        create_asset_status("Lost")
+        print("Default asset statuses added.")
+
+        print("Adding default audits...")
+        audit1 = create_audit(user1.user_id)
+        audit2 = create_audit(user2.user_id)
+        print("Default audits added.")
+        end_audit()
+        audit3 = create_audit(user3.user_id)
+        end_audit()
+        audit4 = create_audit(user1.user_id)
+
         print("Adding additional employees for sample data...")
         employees_created_count = 0
         
