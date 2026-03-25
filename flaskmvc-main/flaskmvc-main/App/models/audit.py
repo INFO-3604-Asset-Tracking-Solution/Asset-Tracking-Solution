@@ -13,7 +13,7 @@ class Audit(db.Model):
     initiator_id = db.Column(db.Integer, db.ForeignKey('user.user_id'), nullable=False)
     start_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     end_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(Enum('pending', 'in_progress', 'completed', name='audit_status'), nullable=False)
+    status = db.Column(Enum('PENDING', 'IN_PROGRESS', 'COMPLETED', name='audit_status'), nullable=False)
 
     relocations = db.relationship('Relocation', backref='audit', lazy=True)
     missing_devices = db.relationship('MissingDevice', backref='audit', lazy=True)
