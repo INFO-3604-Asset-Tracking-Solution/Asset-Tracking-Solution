@@ -9,3 +9,4 @@ from .missingdevices import *
 from .relocation import *
 from .notifications import *
 from .audit import *
+from .assetauthorization import *
