@@ -2,7 +2,7 @@ from App.models import AssetAssignment, Asset, Room, Employee
 from App.database import db
 from datetime import datetime
 
-def create_asset_assignment(asset_id, employee_id, room_id):
+def create_asset_assignment(asset_id, employee_id, room_id, condition):
     asset = Asset.query.get(asset_id)
     employee = Employee.query.get(employee_id)
     room = Room.query.get(room_id)
@@ -12,8 +12,9 @@ def create_asset_assignment(asset_id, employee_id, room_id):
 
     assignment = AssetAssignment(
         asset_id=asset_id,
-        employee_id=employee_id,
+        employee_id=employee_id,    
         room_id = room_id,
+        condition = condition,
         start_date= datetime.utcnow(),
         end_date = None
     )
@@ -49,13 +50,16 @@ def get_all_asset_assignment_json():
 def get_asset_assignment_by_id(assignment_id):
     return AssetAssignment.query.get(assignment_id)
 
+def get_current_asset_assignment(asset_id):
+    return AssetAssignment.query.filter_by(asset_id = asset_id, end_date = None).first()
+
 def get_assignments_by_employee(employee_id):
     return AssetAssignment.query.filter_by(employee_id = employee_id).all()
 
 def get_assignments_by_asset(asset_id):
     return AssetAssignment.query.filter_by(asset_id = asset_id).all()
 
-def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, start_date=None, end_date=None):
+def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, start_date=None, end_date=None, condition=None):
     assignment = get_asset_assignment_by_id(assignment_id)
     if assignment:
         if asset_id:
@@ -66,6 +70,8 @@ def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, star
             assignment.start_date = start_date
         if end_date is not None:
             assignment.end_date = end_date
+        if condition:
+            assignment.condition = condition
         
         db.session.commit()
         return assignment
