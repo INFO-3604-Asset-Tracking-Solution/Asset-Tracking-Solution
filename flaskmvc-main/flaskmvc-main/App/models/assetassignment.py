@@ -1,6 +1,7 @@
 from App.database import db
 from datetime import datetime
 from nanoid import generate
+from sqlalchemy import Enum
 
 def generate_short_id():
     return generate(size=8)
@@ -15,16 +16,20 @@ class AssetAssignment(db.Model):
     assignment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     return_date = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.Enum('in_use', 'returned', name='assignment_status'), default='in_use', nullable=False)
+    condition = db.Column(
+        Enum('Good', 'Needs Repair', 'Beyond Repair', name='condition_enum'),
+        nullable=False
+    )
     
     # asset = db.relationship('Asset', backref='assignments', lazy=True)
     employee = db.relationship('Employee', backref='assignments', lazy=True)
     # room = db.relationship('Room', backref='assignments', lazy=True)
 
-    def __init__(self, asset_id, employee_id, room_id, assignment_date=None, return_date=None):
+    def __init__(self, asset_id, employee_id, room_id, condition, assignment_date=None, return_date=None):
         self.asset_id = asset_id
         self.employee_id = employee_id
         self.room_id = room_id
-
+        self.condition = condition
         self.assignment_date = assignment_date if assignment_date else datetime.utcnow()
         self.return_date = return_date
         self.status = 'returned' if return_date else 'in_use'
@@ -37,6 +42,7 @@ class AssetAssignment(db.Model):
             'room_id': self.room_id,
             'assignment_date': self.assignment_date,
             'return_date': self.return_date,
+            'condition': self.condition,
             'status': self.status
         }
 
@@ -44,4 +50,4 @@ class AssetAssignment(db.Model):
         return f"<AssetAssignment {self.assignment_id}>"
 
     def __str__(self):
-        return f'Assignment {self.assignment_id} (Asset: {self.asset_id}, Employee: {self.employee_id}, Room: {self.room_id})'
+        return f'Assignment {self.assignment_id} (Asset: {self.asset_id}, Employee: {self.employee_id}, Room: {self.room_id}, Condition: {self.condition})'

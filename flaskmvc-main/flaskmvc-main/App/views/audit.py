@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import current_user, jwt_required
 from App.controllers.room import *
 from App.controllers.audit import *
+from App.controllers.checkevent import *
 # from App.controllers.asset import (
 #     get_all_assets, 
 #     get_all_assets_by_room_json, 
@@ -55,112 +56,65 @@ def audit_page():
     buildings = get_all_building_json()
     return render_template('audit.html', buildings=buildings), 200
 
-"""
-API Routes
 
-"""
-
-@audit_views.route('/api/audit-list')
+@audit_views.route('/get-audit-status')
 @jwt_required()
-def get_all_audits():
-    audits = get_all_audits_json()
-    return jsonify(audits), 200
+def get_audit_status():
+    try:
+        return jsonify({'status': get_audit_status()}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-@audit_views.route('/api/audit-list/<audit_id>')
+@audit_views.route('/api/check-event', methods=['POST'])
 @jwt_required()
-def get_audit_by_id(audit_id):
-    audit = get_audit_by_id(audit_id)
-    return jsonify(audit.get_json()), 200
-
-@audit_views.route('/api/compare-audits/<audit_id>/<audit_id2>')
-@jwt_required()
-def compare_audits_api(audit_id, audit_id2):
-    if not get_audit_by_id(audit_id) or not get_audit_by_id(audit_id2):
-        return jsonify({'message': 'Audit not found'}), 404
-    audit1 = get_audit_by_id(audit_id) # Need to get the info from other models 
-    audit2 = get_audit_by_id(audit_id2) # Need to get the info from other models 
-    return jsonify([audit1.get_json(), audit2.get_json()]), 200
-
-# NEW ENDPOINTS FOR DASHBOARD
-from App.models import CheckEvent, MissingDevice, Relocation, db
-
-@audit_views.route('/api/audit/<audit_id>/checkevents', methods=['GET'])
-@jwt_required()
-def api_audit_checkevents(audit_id):
-    query = CheckEvent.query.filter_by(audit_id=audit_id)
-    status_filter = request.args.get('status')
-    if status_filter:
-        query = query.filter_by(status=status_filter)
+def create_check_event():
+    data = request.json
     
-    events = query.all()
-    return jsonify([e.get_json() for e in events]), 200
-
-@audit_views.route('/api/audit/<audit_id>/missing', methods=['GET'])
-@jwt_required()
-def api_audit_missing(audit_id):
-    missing_items = MissingDevice.query.filter_by(audit_id=audit_id).all()
-    return jsonify([{
-        'missing_id': m.missing_id,
-        'assignment_id': m.assignment_id,
-        'date': m.date.strftime('%Y-%m-%d %H:%M:%S'),
-        'found_relocation_id': m.found_relocation_id
-    } for m in missing_items]), 200
-
-@audit_views.route('/api/checkevent/<check_id>/resolve', methods=['POST'])
-@jwt_required()
-def api_resolve_relocation(check_id):
-    # This route will change a pending relocation to relocated
-    event = CheckEvent.query.get(check_id)
-    if not event:
-        return jsonify({'message': 'Check event not found'}), 404
-        
-    if event.status != 'pending relocation':
-        return jsonify({'message': 'Event is not pending relocation'}), 400
-        
-    event.status = 'relocated'
+    if not data or 'asset_id' not in data or 'room_id' not in data:
+        return jsonify({
+            'success': False, 
+            'message': 'Invalid request data: missing asset_id or room_id field'
+        }), 400
     
-    # We should also register the explicit Relocation if missing
-    # To keep it simple, we just update CheckEvent state here to unblock audit closing
-    db.session.commit()
+    asset_id = data['asset_id']
+    room_id = data['room_id']
+    user_id = current_user.user_id
+    found_room_id = data['found_room_id']
+    condition_id = data['condition_id'] 
+    audit_id = data['audit_id']
     
-    return jsonify({'message': 'Relocation resolved', 'event': event.get_json()}), 200
+    # Pass the current user's ID
+    check_event = create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id)
+    
+    if not check_event:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to create check event'
+        }), 500
 
-
-# @audit_views.route('/api/assets/<room_id>')
-# @jwt_required()
-# def get_room_assets(room_id):
-#     """Get all assets for a given room"""
-#     try:
-#         # Get assets for the room
-#         room_assets = get_all_assets_by_room_json(room_id)
+    # Checks if there is a discrepancy in the location
+    if check_event_location_discrepancy(check_event):
+        create_relocation(check_event.audit_id, check_event.found_room_id, check_event.check_event_id)
+        return jsonify({
+            'success': True,
+            'message': 'Check event created successfully',
+            'check_event': check_event.get_json()
+        })
         
-#         # Enhance the assets with room name and assignee information
-#         for asset in room_assets:
-#             # Add room names where possible
-#             if 'room_id' in asset:
-#                 room = get_room(asset['room_id'])
-#                 if room:
-#                     asset['room_name'] = room.room_name
-            
-#             if 'last_located' in asset:
-#                 last_room = get_room(asset['last_located'])
-#                 if last_room:
-#                     asset['last_located_name'] = last_room.room_name
-            
-#             # Add assignee name information - THIS IS THE FIX
-#             if asset.get('assignee_id'):
-#                 assignee = get_assignee_by_id(asset['assignee_id'])
-#                 if assignee:
-#                     asset['assignee_name'] = str(assignee)  # Use __str__
-#                 else:
-#                     asset['assignee_name'] = f"Assignee ID: {asset['assignee_id']}"
-#             else:
-#                 asset['assignee_name'] = "Unassigned"
-        
-#         return jsonify(room_assets)
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
+    # Checks if there is a discrepancy in the condition
+    if check_event_condition_discrepancy(check_event):
+        # update_asset_assignment(check_event.asset_id, condition=check_event.condition)
+        return jsonify({
+            'success': True,
+            'message': 'Check event created successfully',
+            'check_event': check_event.get_json()
+        })
+    
+    return jsonify({
+        'success': True,
+        'message': 'Check event created successfully',
+        'check_event': check_event.get_json()
+    })
 # @audit_views.route('/api/asset/<asset_id>', methods=['GET'])
 # @jwt_required()
 # def get_asset_by_id(asset_id):
@@ -236,3 +190,49 @@ def api_resolve_relocation(check_id):
 #         'errors': errors[:10] if errors else []
 #     })
     
+"""
+API Routes
+
+"""
+
+@audit_views.route('/api/assets/<room_id>')
+@jwt_required()
+def get_room_assets(room_id):
+    """Get all assets for a given room"""
+    try:
+        # Get assets for the room
+        room_assets = get_all_assets_by_room_json(room_id)
+        return jsonify(room_assets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+
+@audit_views.route('/api/audit-list')
+@jwt_required()
+def get_all_audits():
+    audits = get_all_audits_json()
+    return jsonify(audits), 200
+
+@audit_views.route('/api/audit-list/<audit_id>')
+@jwt_required()
+def get_audit_by_id(audit_id):
+    audit = generate_final_report(audit_id)
+    return jsonify(audit), 200
+
+@audit_views.route('/api/generate-iterim-report/<audit_id>')
+@jwt_required()
+def generate_iterim_report(audit_id):
+    audit = generate_iterim_report(audit_id)
+    return jsonify(audit), 200
+
+@audit_views.route('/api/compare-audits/<audit_id>/<audit_id2>')
+@jwt_required()
+def compare_audits_api(audit_id, audit_id2):
+    if not get_audit_by_id(audit_id) or not get_audit_by_id(audit_id2):
+        return jsonify({'message': 'Audit not found'}), 404
+    try:
+        audit1 = generate_final_report(audit_id) 
+        audit2 = generate_final_report(audit_id2) 
+        return jsonify([audit1, audit2]), 200
+    except Exception as e:
+        return jsonify({'error': 'Could not compare Audits'}), 500
+

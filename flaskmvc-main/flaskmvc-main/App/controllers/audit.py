@@ -34,31 +34,8 @@ def end_audit():
     if pending_checks:
         return None # Can't close if pending relocation exists
 
-    # Mark still missing devices as 'lost' in CheckEvents
-    # Actually, we need to find missing devices and update their corresponding check event status, 
-    # but missing devices might not have check events yet. Let's create 'lost' check events for them, 
-    # or update them appropriately. 
-
-    still_missing = MissingDevice.query.filter_by(audit_id=audit.audit_id, found_relocation_id=None).all()
-    for missing in still_missing:
-        # Check if there is already a CheckEvent for this assignment/asset
-        asset_id = missing.assignment.asset_id if missing.assignment else None
-        if asset_id:
-            check_event = CheckEvent.query.filter_by(audit_id=audit.audit_id, asset_id=asset_id).first()
-            if check_event:
-                check_event.status = 'lost'
-            else:
-                # Assuming 'lost' implies we log a check event saying it's lost
-                check_event = CheckEvent(
-                    audit_id=audit.audit_id,
-                    asset_id=asset_id,
-                    user_id=audit.initiator_id, # Or some default user
-                    found_room_id=missing.assignment.room_id if missing.assignment else 0, # They weren't found, use expected room
-                    condition='Good', # Place holder
-                    status='lost'
-                )
-                db.session.add(check_event)
-
+    # Audit cannot finish without relocation table having all assets be relocated 
+    
     audit.end_date = datetime.utcnow()
     audit.status = "completed"
 
@@ -90,3 +67,58 @@ def get_audit_by_date_range(start_date, end_date):
 
 def get_audit_by_date(date):
     return Audit.query.filter(Audit.start_date <= date, Audit.end_date >= date).first()
+
+def get_active_audit():
+    return Audit.query.filter(Audit.status.in_(['IN_PROGRESS', 'PENDING'])).first()
+
+def get_audit_status():
+    audit = get_active_audit()
+    if not audit:
+        return 'NO_ACTIVE_AUDIT'
+    return audit.get_json()['status']
+
+def generate_interim_report(audit_id):
+    audit = get_audit_by_id(audit_id)
+    if not audit or audit.status != 'IN_PROGRESS':
+        return None
+    # Returns the four cases: 1) Asset is in the correct room, 2) Asset is in the wrong room, 3) Asset is missing, 4) Asset is in different condition
+    
+    # 1) Asset is in the correct room
+    correct_room = CheckEvent.query.filter_by(audit_id=audit_id, status='correct room').all()
+    # 2) Asset is in the wrong room
+    wrong_room = CheckEvent.query.filter_by(audit_id=audit_id, status='wrong room').all()
+    # 3) Asset is missing
+    missing = CheckEvent.query.filter_by(audit_id=audit_id, status='missing').all()
+    # 4) Asset is in different condition
+    different_condition = CheckEvent.query.filter_by(audit_id=audit_id, status='different condition').all()
+    
+    return {
+        'correct_room': [check_event.get_json() for check_event in correct_room],
+        'wrong_room': [check_event.get_json() for check_event in wrong_room],
+        'missing': [check_event.get_json() for check_event in missing],
+        'different_condition': [check_event.get_json() for check_event in different_condition]
+    }
+
+def generate_final_report(audit_id):
+    audit = get_audit_by_id(audit_id)
+    if not audit:
+        return None
+    # Returns the four cases: 1) Asset is in the correct room, 2) Asset is in the wrong room, 3) Asset is missing, 4) Asset is in different condition
+    
+    # 1) Asset is in the correct room
+    correct_room = CheckEvent.query.filter_by(audit_id=audit_id, status='correct room').all()
+    # 2) Asset is in the wrong room
+    wrong_room = CheckEvent.query.filter_by(audit_id=audit_id, status='wrong room').all()
+    # 3) Asset is missing
+    missing = CheckEvent.query.filter_by(audit_id=audit_id, status='missing').all()
+    # 4) Asset is in different condition
+    different_condition = CheckEvent.query.filter_by(audit_id=audit_id, status='different condition').all()
+    
+    return {
+        'correct_room': [check_event.get_json() for check_event in correct_room],
+        'wrong_room': [check_event.get_json() for check_event in wrong_room],
+        'missing': [check_event.get_json() for check_event in missing],
+        'different_condition': [check_event.get_json() for check_event in different_condition]
+    }
+
+    
