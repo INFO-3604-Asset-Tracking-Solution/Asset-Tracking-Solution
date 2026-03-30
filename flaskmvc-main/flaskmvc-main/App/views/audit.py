@@ -3,6 +3,9 @@ from flask_jwt_extended import current_user, jwt_required
 from App.controllers.room import *
 from App.controllers.audit import *
 from App.controllers.checkevent import *
+from App.controllers.user import *
+from App.controllers.audit import *
+from flask import flash, redirect, url_for
 # from App.controllers.asset import (
 #     get_all_assets, 
 #     get_all_assets_by_room_json, 
@@ -16,29 +19,36 @@ audit_views = Blueprint('audit_views', __name__, template_folder='../templates')
 @audit_views.route('/audit-list')
 @jwt_required()
 def audit_list():
-    audits = get_all_audits() # Need to get the info from other models 
-    return render_template('audit_list.html', audits=audits)
+    audits = get_all_audits_json() 
+    active_audit = get_active_audit()
+    return render_template('audit_list.html', audits=audits, active_audit=active_audit)
 
 @audit_views.route('/audit-list/<audit_id>', methods=['GET'])
 @jwt_required()
 def audit_detail(audit_id):
     audit = get_audit_by_id(audit_id) # Need to get the info from other models 
+    check_events = get_all_check_events_by_audit(audit_id)
+    return render_template('audit_detail.html', audit=audit, check_events=check_events)
 
-    return render_template('audit_detail.html', audit=audit)
-
-@audit_views.route('/start-audit', methods=['POST'])
+@audit_views.route('/start-audit', methods=['GET'])
 @jwt_required()
 def start_audit():
+    if get_active_audit() is not None:
+        return redirect(url_for('audit_views.audit_list'))
     audit = create_audit(current_user.user_id)
-    return jsonify(audit.get_json()), 200
+    audits = get_all_audits_json()
+    
+    return render_template('audit_list.html', audits=audits), 200
 
-@audit_views.route('/end-audit', methods=['POST'])
+@audit_views.route('/end-audit', methods=['GET'])
 @jwt_required()
-def end_audit_route():
+def end_audit_view():
     audit = end_audit()
     if not audit:
-        return jsonify({'message': 'No active audit to end'}), 400
-    return jsonify(audit.get_json()), 200
+        flash('No active audit to end', 'error')
+    else:
+        flash('Audit completed successfully!', 'success')
+    return redirect(url_for('audit_views.audit_list'))
 
 @audit_views.route('/compare-audits/<audit_id>/<audit_id2>', methods=['POST'])
 @jwt_required()
@@ -59,7 +69,7 @@ def audit_page():
 
 @audit_views.route('/get-audit-status')
 @jwt_required()
-def get_audit_status():
+def get_audit_status_view():
     try:
         return jsonify({'status': get_audit_status()}), 200
     except Exception as e:
@@ -67,7 +77,7 @@ def get_audit_status():
 
 @audit_views.route('/api/check-event', methods=['POST'])
 @jwt_required()
-def create_check_event():
+def create_check_event_api():
     data = request.json
     
     if not data or 'asset_id' not in data or 'room_id' not in data:
@@ -195,6 +205,12 @@ API Routes
 
 """
 
+@audit_views.route('/api/start-audit', methods=['POST'])
+@jwt_required()
+def start_audit_api():
+    audit = create_audit(current_user.user_id)
+    return jsonify(audit.get_json()), 200
+
 @audit_views.route('/api/assets/<room_id>')
 @jwt_required()
 def get_room_assets(room_id):
@@ -208,20 +224,20 @@ def get_room_assets(room_id):
 
 @audit_views.route('/api/audit-list')
 @jwt_required()
-def get_all_audits():
+def get_all_audits_api():
     audits = get_all_audits_json()
     return jsonify(audits), 200
 
 @audit_views.route('/api/audit-list/<audit_id>')
 @jwt_required()
-def get_audit_by_id(audit_id):
+def get_audit_by_id_api(audit_id):
     audit = generate_final_report(audit_id)
     return jsonify(audit), 200
 
 @audit_views.route('/api/generate-iterim-report/<audit_id>')
 @jwt_required()
-def generate_iterim_report(audit_id):
-    audit = generate_iterim_report(audit_id)
+def generate_iterim_report_api(audit_id):
+    audit = generate_interim_report(audit_id)
     return jsonify(audit), 200
 
 @audit_views.route('/api/compare-audits/<audit_id>/<audit_id2>')

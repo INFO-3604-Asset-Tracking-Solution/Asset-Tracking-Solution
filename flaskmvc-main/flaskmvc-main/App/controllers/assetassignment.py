@@ -14,9 +14,7 @@ def create_asset_assignment(asset_id, employee_id, room_id, condition):
         asset_id=asset_id,
         employee_id=employee_id,    
         room_id = room_id,
-        condition = condition,
-        start_date= datetime.utcnow(),
-        end_date = None
+        condition = condition
     )
     db.session.add(assignment)
     db.session.commit()

@@ -22,8 +22,7 @@ class Asset(db.Model):
     checkevents = db.relationship('CheckEvent', backref='asset', lazy=True)
     assignments = db.relationship('AssetAssignment', backref='asset', lazy=True)
 
-    def __init__(self, asset_id, description, brand=None, model=None, serial_number=None, status_id=None, cost=None, notes=None, last_update=None):
-        self.asset_id = asset_id
+    def __init__(self, description, brand=None, model=None, serial_number=None, status_id=None, cost=None, notes=None, last_update=None):
         self.description = description
         self.brand = brand
         self.model = model

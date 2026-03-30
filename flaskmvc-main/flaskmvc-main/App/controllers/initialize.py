@@ -61,39 +61,70 @@ def initialize():
         ensure_defaults()
         
         print("Adding default asset statuses...")
-        create_asset_status("Good")
-        create_asset_status("Missing")
-        create_asset_status("Misplaced")
-        create_asset_status("Lost")
+        if not get_asset_status_by_name("Good"):
+            create_asset_status("Good")
+        if not get_asset_status_by_name("Missing"):
+            create_asset_status("Missing")
+        if not get_asset_status_by_name("Misplaced"):
+            create_asset_status("Misplaced")
+        if not get_asset_status_by_name("Lost"):
+            create_asset_status("Lost")
         print("Default asset statuses added.")
 
-        print("Adding default audits...")
-        audit1 = create_audit(user1.user_id)
-        audit2 = create_audit(user2.user_id)
-        print("Default audits added.")
-        end_audit()
-        audit3 = create_audit(user3.user_id)
-        end_audit()
-        audit4 = create_audit(user1.user_id)
+        print("Adding sample assets...")
+        a1 = add_asset("Dell Latitude 5420", "Dell", "Latitude 5420", "SN-DELL-123", 1200.00, "Standard office laptop", "Good")
+        a2 = add_asset("Logitech MX Master 3", "Logitech", "MX Master 3", "SN-LOGI-456", 99.00, "Ergonomic mouse", "Good")
+        a3 = add_asset("HP LaserJet Pro", "HP", "LaserJet Pro M404n", "SN-HP-789", 350.00, "Department printer", "Good")
+        a4 = add_asset("Samsung 27\" Monitor", "Samsung", "S27R350", "SN-SAM-321", 200.00, "Desk monitor", "Good")
+        print("Sample assets added.")
 
+        # Get room IDs (they are likely 1, 2)
+        room1 = Room.query.first()
+        room2 = Room.query.offset(1).first()
+
+        print("Adding default audits...")
+        # Note: Audit status must be uppercase to match the model's Enum
+        audit1 = create_audit(user1.user_id) # Should be in_progress by default
+        
+        # Manually create some completed audits for history
+        audit2 = create_audit(user2.user_id)
+        end_audit()
+        
+        audit3 = create_audit(user2.user_id)
+        end_audit()
+        
+        db.session.commit()
+        print("Default audits added.")
+
+        print("Adding check events for sample data...")
+        if audit2 and a1 and room1:
+            create_check_event(audit2.audit_id, a1.asset_id, user1.user_id, room1.room_id, "Good", "found")
+        if audit2 and a2 and room1:
+            create_check_event(audit2.audit_id, a2.asset_id, user1.user_id, room1.room_id, "Needs Repair", "found")
+        if audit3 and a3 and room2:
+            create_check_event(audit3.audit_id, a3.asset_id, user3.user_id, room2.room_id, "Good", "found")
+        
         print("Adding additional employees for sample data...")
         employees_created_count = 0
         
-        for i in range(3, 21):
-            # Check if an employee with this ID somehow already exists (unlikely after drop/create)
-            if not Employee.query.get(i):
-                temp_employee = create_employee(
-                    first_name=f"SampleFirst{i}",
-                    last_name=f"SampleLast{i}",
-                    email=f"sample{i}@example.com",
-                )
-                if temp_employee:
-                    employees_created_count += 1
-                else:
-                    print(f"Warning: Could not create sample employee {i}")
-            else:
-                print(f"Info: Employee with ID {i} already exists, skipping creation.")
+        for i in range(3, 11):
+            temp_employee = create_employee(
+                first_name=f"SampleFirst{i}",
+                last_name=f"SampleLast{i}",
+                email=f"sample{i}@example.com",
+            )
+            if temp_employee:
+                employees_created_count += 1
         print(f"Added {employees_created_count} additional sample employees.")
+
+        print("Adding sample asset assignments...")
+        if a1 and user1:
+            create_asset_assignment(a1.asset_id, user1.user_id, room1.room_id, "Good")
+        if a2 and user2:
+            create_asset_assignment(a2.asset_id, user2.user_id, room1.room_id, "Good")
+        if a3 and user3:
+            create_asset_assignment(a3.asset_id, user3.user_id, room2.room_id, "Good")
+        print("Asset assignments added.")
 
         print("--- Database Initialization Finished Successfully ---")
 
