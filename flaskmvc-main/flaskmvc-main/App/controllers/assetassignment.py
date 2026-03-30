@@ -15,8 +15,8 @@ def create_asset_assignment(asset_id, employee_id, room_id, condition):
         employee_id=employee_id,    
         room_id = room_id,
         condition = condition,
-        start_date= datetime.utcnow(),
-        end_date = None
+        assignment_date= datetime.utcnow(),
+        return_date = None
     )
     db.session.add(assignment)
     db.session.commit()
@@ -30,7 +30,8 @@ def end_assignment(assignment_id):
     if not assignment:
         return None
 
-    assignment.end_date = datetime.utcnow()
+    assignment.return_date = datetime.utcnow()
+    assignment.status = 'returned'
 
     db.session.commit()
 
@@ -51,7 +52,7 @@ def get_asset_assignment_by_id(assignment_id):
     return AssetAssignment.query.get(assignment_id)
 
 def get_current_asset_assignment(asset_id):
-    return AssetAssignment.query.filter_by(asset_id = asset_id, end_date = None).first()
+    return AssetAssignment.query.filter_by(asset_id = asset_id, return_date = None).first()
 
 def get_assignments_by_employee(employee_id):
     return AssetAssignment.query.filter_by(employee_id = employee_id).all()
@@ -59,17 +60,21 @@ def get_assignments_by_employee(employee_id):
 def get_assignments_by_asset(asset_id):
     return AssetAssignment.query.filter_by(asset_id = asset_id).all()
 
-def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, start_date=None, end_date=None, condition=None):
+def get_assignments_for_room(room_id):
+    return AssetAssignment.query.filter_by(room_id = room_id, return_date = None).all()
+
+def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, assignment_date=None, return_date=None, condition=None):
     assignment = get_asset_assignment_by_id(assignment_id)
     if assignment:
         if asset_id:
             assignment.asset_id = asset_id
         if employee_id:
             assignment.employee_id = employee_id
-        if start_date:
-            assignment.start_date = start_date
-        if end_date is not None:
-            assignment.end_date = end_date
+        if assignment_date:
+            assignment.assignment_date = assignment_date
+        if return_date is not None:
+            assignment.return_date = return_date
+            assignment.status = 'returned'
         if condition:
             assignment.condition = condition
         
@@ -87,3 +92,12 @@ def delete_asset_assignment(assignment_id):
     
     return False
 
+def reconcile_discrepancy(asset_id, new_room_id, new_condition):
+    assignment = get_current_asset_assignment(asset_id)
+    if not assignment:
+        return None
+    
+    assignment.room_id = new_room_id
+    assignment.condition = new_condition
+    db.session.commit()
+    return assignment
