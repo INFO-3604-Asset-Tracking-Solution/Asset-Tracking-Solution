@@ -27,13 +27,14 @@ class CheckEvent(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
-    def __init__(self, audit_id, asset_id, user_id, found_room_id, condition, status):
+    def __init__(self, audit_id, asset_id, user_id, found_room_id, condition, status, timestamp=None):
         self.audit_id = audit_id
         self.asset_id = asset_id
         self.user_id = user_id
         self.found_room_id = found_room_id
         self.condition = condition
         self.status = status
+        self.timestamp = timestamp if timestamp else datetime.utcnow()
 
 
     def get_json(self):

@@ -3,33 +3,44 @@ from App.models import Asset
 
 class AssetUnitTests(unittest.TestCase):
     def test_new_asset(self):
-        asset = Asset("01", "laptop", "ISP 300", "DELL", "8300164", "R2", "R2", "01", "30-01-2025", "Recently bought", "Good")
-        self.assertEqual(asset.id, "01")
+        asset = Asset("laptop", "DELL", "ISP 300", "8300164", 1, 1500.00, "Recently bought")
         self.assertEqual(asset.description, "laptop")
-        self.assertEqual(asset.model, "ISP 300")
         self.assertEqual(asset.brand, "DELL")
+        self.assertEqual(asset.model, "ISP 300")
         self.assertEqual(asset.serial_number, "8300164")
-        self.assertEqual(asset.room_id, "R2")
-        self.assertEqual(asset.last_located, "R2")
-        self.assertEqual(asset.assignee_id, "01")
-        self.assertEqual(asset.last_update, "30-01-2025")
+        self.assertEqual(asset.status_id, 1)
+        self.assertEqual(float(asset.cost), 1500.00)
         self.assertEqual(asset.notes, "Recently bought")
-        self.assertEqual(asset.status, "Good")
         
-    def test_get_json(self):
-        asset = Asset("01", "laptop", "ISP 300", "DELL", "8300164", "R2", "R2", "01", "30-01-2025", "Recently bought", "Good")
-        expected_json = {
-            'id': "01",
-            'description': "laptop",
-            'model': "ISP 300",
-            'brand': "DELL",
-            'serial_number': "8300164",
-            'room_id': "R2",
-            'last_located': "R2",
-            'assignee_id': "01",
-            'last_update': "30-01-2025",
-            'notes': "Recently bought",
-            'status': "Good"
-        }
-        self.assertDictEqual(asset.get_json(), expected_json)
+    def test_asset_cost_boundaries(self):
+        # 0 cost
+        a1 = Asset("0-cost laptop", cost=0.00)
+        self.assertEqual(float(a1.cost), 0.00)
+        # Large cost
+        a2 = Asset("expensive laptop", cost=99999999.99)
+        self.assertEqual(float(a2.cost), 99999999.99)
+        # Negative cost (though models might not forbid it, this should be tracked)
+        a3 = Asset("negative cost computer", cost=-1.50)
+        self.assertEqual(float(a3.cost), -1.50)
+
+    def test_asset_optional_fields_missing(self):
+        # Test providing only the required description
+        asset = Asset("simple item")
+        self.assertEqual(asset.description, "simple item")
+        self.assertIsNone(asset.brand)
+        self.assertIsNone(asset.model)
+        self.assertIsNone(asset.serial_number)
+        self.assertIsNone(asset.status_id)
+        self.assertIsNone(asset.cost)
+        self.assertIsNone(asset.notes)
+        self.assertIsNone(asset.last_update)
+
+    def test_asset_get_json_with_missing_fields(self):
+        asset = Asset("Minimal item")
+        asset_json = asset.get_json()
+        self.assertEqual(asset_json['brand'], None)
+        self.assertEqual(asset_json['cost'], None)
+        self.assertEqual(asset_json['notes'], None)
+
+
         

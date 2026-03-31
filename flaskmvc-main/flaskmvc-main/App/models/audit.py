@@ -15,8 +15,8 @@ class Audit(db.Model):
     end_date = db.Column(db.DateTime, nullable=True)
     status = db.Column(Enum('PENDING', 'IN_PROGRESS', 'COMPLETED', name='audit_status'), nullable=False)
 
-    relocations = db.relationship('Relocation', backref='audit', lazy=True)
     missing_devices = db.relationship('MissingDevice', backref='audit', lazy=True)
+
 
     def __init__(self, initiator_id, status, start_date=None, end_date=None):
         self.initiator_id = initiator_id

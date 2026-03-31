@@ -17,12 +17,14 @@ class Relocation(db.Model):
     # audit = db.relationship('Audit', backref='relocations', lazy=True)
     missing_devices_found = db.relationship('MissingDevice', backref='found_relocation', lazy=True)
 
-    def __init__(self, check_id, found_in_id, new_check_event_id=None):
+    def __init__(self, check_id, found_in_id, new_check_event_id=None, timestamp=None):
         self.check_id = check_id
         self.found_in_id = found_in_id
         self.new_check_event_id = new_check_event_id
+        self.timestamp = timestamp if timestamp else datetime.utcnow()
 
     def get_json(self):
+
         return {
             'relocation_id': self.relocation_id,
             'check_id': self.check_id,
