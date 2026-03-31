@@ -7,7 +7,7 @@ class MissingDevice(db.Model):
     missing_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     audit_id = db.Column(db.String(30), db.ForeignKey('audit.audit_id'), nullable=False)
     assignment_id = db.Column(db.String(30), db.ForeignKey('asset_assignment.assignment_id'), nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     found_relocation_id = db.Column(db.String(30), db.ForeignKey('relocation.relocation_id'), nullable=True)
 
     # asset = db.relationship('Asset', backref='missing_records', lazy=True)
@@ -22,6 +22,6 @@ class MissingDevice(db.Model):
             'missing_id': self.missing_id,
             'audit_id': self.audit_id,
             'assignment_id': self.assignment_id,
-            'date': self.date,
+            'timestamp': self.timestamp,
             'found_relocation_id': self.found_relocation_id
         }
