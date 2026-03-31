@@ -2,14 +2,9 @@ from datetime import datetime
 from App.models import Relocation, CheckEvent, Room
 from App.database import db
 
-def create_relocation(check_id, found_room_id, new_check_event_id):
+def create_relocation(check_id, found_room_id):
     check = CheckEvent.query.get(check_id)
     room = Room.query.get(found_room_id)
-
-    if new_check_event_id is not None:
-        new_check = CheckEvent.query.get(new_check_event_id)
-        if not new_check:
-            return None
             
     if not check or not room:
         return None
@@ -18,8 +13,6 @@ def create_relocation(check_id, found_room_id, new_check_event_id):
     relocation =  Relocation(
         check_id = check_id,
         found_room_id = found_room_id,
-        new_check_event_id = new_check_event_id,
-        timestamp = datetime.utcnow()
     )
 
     db.session.add(relocation)
@@ -35,3 +28,28 @@ def get_relocation(relocation_id):
 
 def get_relocation_by_check(check_id):
     return Relocation.query.filter_by(check_id = check_id).all()
+
+def update_relocation(relocation_id, item_relocated_room_id):
+    """
+    Updates the relocation with the new room id 
+    and creates a new check event for the relocated item
+    """
+    relocation = get_relocation(relocation_id)
+    check = CheckEvent.query.get(relocation.check_id)
+    if not relocation or not check:
+        return None
+
+    new_check_row = CheckEvent(
+        audit_id = check.audit_id,
+        asset_id = check.asset_id,
+        user_id = check.user_id,
+        found_room_id = item_relocated_room_id,
+        condition = check.condition,
+        status = 'relocated'
+    )
+    if not relocation:
+        return None
+    relocation.item_relocated_id = new_check_row.check_id
+    db.session.add(new_check_row)
+    db.session.commit()
+    return relocation

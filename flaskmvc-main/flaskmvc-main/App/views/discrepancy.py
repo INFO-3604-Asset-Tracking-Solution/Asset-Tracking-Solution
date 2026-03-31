@@ -14,11 +14,106 @@ from App.database import db
 #     bulk_mark_assets_found, # Import new function
 #     bulk_relocate_assets    # Import new function
 # )
-from App.controllers.room import get_room, get_all_rooms
+from App.controllers.room import *
+from App.controllers.missingdevices import *
+from App.controllers.relocation import *
+from App.controllers.checkevent import *
+from App.controllers.assetassignment import *
 from datetime import datetime
 
 
 discrepancy_views = Blueprint('discrepancy_views', __name__, template_folder='../templates')
+
+@discrepancy_views.route('/mark-room-missing', methods=['POST'])
+@jwt_required()
+def mark_room_missing():
+    data = request.json
+    room_id = data.get('room_id')
+    audit_id = data.get('audit_id')
+    if not room_id or not audit_id:
+        return jsonify({'success': False, 'message': 'Room ID and Audit ID are required'}), 400
+    mark_assets_missing_for_room(audit_id, room_id)
+    return jsonify({'success': True, 'message': 'Assets marked as missing for room'}), 200
+
+@discrepancy_views.route('/mark-asset-found', methods=['POST'])
+@jwt_required()
+def mark_asset_found_route():
+    data = request.json
+    missing_id = data.get('missing_id')
+    relocation_id = data.get('relocation_id')
+    if not missing_id or not relocation_id:
+        return jsonify({'success': False, 'message': 'Missing ID and Relocation ID are required'}), 400
+    result = mark_asset_found(missing_id, relocation_id)
+    if result:
+        return jsonify({'success': True, 'message': 'Asset marked as found'}), 200
+    return jsonify({'success': False, 'message': 'Failed to mark asset as found'}), 500
+
+@discrepancy_views.route('/relocate-asset', methods=['POST'])
+@jwt_required()
+def relocate_asset_route():
+    data = request.json
+    check_id = data.get('check_id')
+    found_room_id = data.get('found_room_id')
+    if not check_id or not found_room_id:
+        return jsonify({'success': False, 'message': 'Check ID and Found Room ID are required'}), 400
+    result = create_relocation(check_id, found_room_id)
+    if result:
+        return jsonify({'success': True, 'message': 'Relocation created'}), 201
+    return jsonify({'success': False, 'message': 'Failed to create relocation'}), 500
+
+@discrepancy_views.route('/change-asset-condition', methods=['POST'])
+@jwt_required()
+def change_asset_condition_route():
+    data = request.json
+    check_id = data.get('check_id')
+    condition = data.get('condition')
+    if not check_id or not condition:
+        return jsonify({'success': False, 'message': 'Check ID and Condition are required'}), 400
+    result = update_check_event_condition(check_id, condition)
+    if result:
+        return jsonify({'success': True, 'message': 'Asset condition updated'}), 200
+    return jsonify({'success': False, 'message': 'Failed to update asset condition'}), 500
+
+@discrepancy_views.route('/mark-asset-relocated', methods=['POST'])
+@jwt_required()
+def mark_asset_relocated_route():
+    data = request.json
+    relocation_id = data.get('relocation_id')
+    item_relocated_room_id = data.get('item_relocated_room_id')
+    if not relocation_id or not item_relocated_room_id:
+        return jsonify({'success': False, 'message': 'Relocation ID and Item Relocated Room ID are required'}), 400
+    result = update_relocation(relocation_id, item_relocated_room_id)
+    if result:
+        return jsonify({'success': True, 'message': 'Asset marked as relocated'}), 200
+    return jsonify({'success': False, 'message': 'Failed to mark asset as relocated'}), 500
+
+@discrepancy_views.route('/reconcile-discrepancy', methods=['POST'])
+@jwt_required()
+def reconcile_discrepancy_route():
+    data = request.json
+    asset_id = data.get('asset_id')
+    new_room_id = data.get('new_room_id')
+    new_condition = data.get('new_condition')
+    if not asset_id or not new_room_id or not new_condition:
+        return jsonify({'success': False, 'message': 'Asset ID, New Room ID, and New Condition are required'}), 400
+    result = reconcile_discrepancy(asset_id, new_room_id, new_condition)
+    if result:
+        return jsonify({'success': True, 'message': 'Discrepancy reconciled'}), 200
+    return jsonify({'success': False, 'message': 'Failed to reconcile discrepancy'}), 500
+
+@discrepancy_views.route('/mark-asset-lost', methods=['POST'])
+@jwt_required()
+def mark_asset_lost_route():
+    data = request.json
+    missing_id = data.get('missing_id')
+    if not missing_id:
+        return jsonify({'success': False, 'message': 'Missing ID is required'}), 400
+    result = mark_asset_lost(missing_id)
+    if result:
+        return jsonify({'success': True, 'message': 'Asset marked as lost'}), 200
+    return jsonify({'success': False, 'message': 'Failed to mark asset as lost'}), 500
+
+
 
 # --- Existing routes remain the same ---
 # @discrepancy_views.route('/discrepancy-report', methods=['GET'])
