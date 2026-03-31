@@ -21,6 +21,6 @@ class MissingDevice(db.Model):
             'missing_id': self.missing_id,
             'audit_id': self.audit_id,
             'assignment_id': self.assignment_id,
-            'date': self.date,
+            'timestamp': self.timestamp,
             'found_relocation_id': self.found_relocation_id
         }

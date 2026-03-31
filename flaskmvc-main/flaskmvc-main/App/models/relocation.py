@@ -10,20 +10,23 @@ class Relocation(db.Model):
 
     relocation_id = db.Column(db.String(30), primary_key=True, default=generate_short_id)
     check_id = db.Column(db.String(30), db.ForeignKey('checkevent.check_id'), nullable=False)
-    found_in_room_id = db.Column(db.Integer, db.ForeignKey('room.room_id'), nullable=False)
-    item_relocated_id = db.Column(db.Integer, db.ForeignKey('checkevent.check_id'), nullable=True) # New location of item after relocation - Check event table
+    found_in_id = db.Column(db.Integer, db.ForeignKey('room.room_id'), nullable=False)
+    new_check_event_id = db.Column(db.String(30), db.ForeignKey('checkevent.check_id'), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    def __init__(self, check_id, found_in_room_id):
+    # audit = db.relationship('Audit', backref='relocations', lazy=True)
+    missing_devices_found = db.relationship('MissingDevice', backref='found_relocation', lazy=True)
+
+    def __init__(self, check_id, found_in_id, new_check_event_id=None):
         self.check_id = check_id
-        self.found_in_room_id = found_in_room_id
-        self.item_relocated_id = None
+        self.found_in_id = found_in_id
+        self.new_check_event_id = new_check_event_id
 
     def get_json(self):
         return {
             'relocation_id': self.relocation_id,
             'check_id': self.check_id,
-            'found_in_room_id': self.found_in_room_id,
-            'item_relocated_id': self.item_relocated_id,
+            'found_in_id': self.found_in_id,
+            'new_check_event_id': self.new_check_event_id,
             'timestamp': self.timestamp.isoformat()
         }
