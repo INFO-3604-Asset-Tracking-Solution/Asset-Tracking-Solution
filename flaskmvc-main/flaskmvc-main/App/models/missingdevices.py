@@ -12,9 +12,11 @@ class MissingDevice(db.Model):
 
     # asset = db.relationship('Asset', backref='missing_records', lazy=True)
 
-    def __init__(self, audit_id, assignment_id):
+    def __init__(self, audit_id, assignment_id, timestamp=None):
         self.audit_id = audit_id
         self.assignment_id = assignment_id
+        self.timestamp = timestamp if timestamp else datetime.utcnow()
+
 
     def get_json(self):
         return {
