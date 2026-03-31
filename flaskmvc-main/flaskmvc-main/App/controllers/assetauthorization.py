@@ -13,8 +13,7 @@ def propose_asset(description, proposing_user_id, brand=None, model=None, serial
         model=model,
         serial_number=serial_number,
         cost=cost,
-        notes=notes,
-        status_id=status_id
+        notes=notes
     )
     
     try:
@@ -26,7 +25,7 @@ def propose_asset(description, proposing_user_id, brand=None, model=None, serial
         print(f"Error proposing asset: {e}")
         return None
 
-def approve_asset(authorization_id, authorized_by_user_id, asset_tag):
+def approve_asset(authorization_id, authorized_by_user_id):
     """
     Approves an asset proposal and formally adds it to the Asset table.
     """
@@ -34,16 +33,11 @@ def approve_asset(authorization_id, authorized_by_user_id, asset_tag):
     if not proposal or proposal.authorization_status != 'Pending':
         return None
     
-    # Get status name from status_id if provided, else default to 'Available'
+    # Default to 'Available'
     status_name = "Available"
-    if proposal.status_id:
-        status = AssetStatus.query.get(proposal.status_id)
-        if status:
-            status_name = status.status_name
 
     # Formally add the asset to the database
     new_asset = add_asset(
-        asset_id=asset_tag,
         description=proposal.description,
         brand=proposal.brand,
         model=proposal.model,

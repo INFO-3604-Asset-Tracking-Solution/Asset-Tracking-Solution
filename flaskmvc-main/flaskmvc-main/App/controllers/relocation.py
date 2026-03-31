@@ -9,10 +9,9 @@ def create_relocation(check_id, found_room_id):
     if not check or not room:
         return None
 
-
     relocation =  Relocation(
         check_id = check_id,
-        found_room_id = found_room_id,
+        found_in_id = found_room_id,
     )
 
     db.session.add(relocation)
@@ -47,9 +46,11 @@ def update_relocation(relocation_id, item_relocated_room_id):
         condition = check.condition,
         status = 'relocated'
     )
+    check.status = 'relocated'
     if not relocation:
         return None
-    relocation.item_relocated_id = new_check_row.check_id
     db.session.add(new_check_row)
+    db.session.flush() # flush to get the new check_row ID
+    relocation.new_check_event_id = new_check_row.check_id
     db.session.commit()
     return relocation

@@ -244,7 +244,7 @@ def user_tests_command(category):
         args = ["App/tests/unit"]
     elif category == "int":
         args = ["App/tests/integration"]
-    elif category in ["user", "asset", "assignee", "location_hierarchy", "asset_assignment", "scanevent"]:
+    elif category in ["user", "asset", "location_hierarchy", "asset_assignment", "scanevent", "discrepancy", "authorization"]:
         args = [f"App/tests/integration/test_int_{category}.py"]
     else:
         args = ["App/tests"]
