@@ -3,7 +3,8 @@ from flask import Blueprint, render_template, jsonify, request, send_file
 from flask_jwt_extended import jwt_required, current_user
 from App.controllers.asset import  get_all_assets_json, upload_csv
 from App.controllers.user import update_user
-
+from App.controllers.building import *
+from App.controllers.floor import *
 from App.controllers.room import *
 import os
 import csv

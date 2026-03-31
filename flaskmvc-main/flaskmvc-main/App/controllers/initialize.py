@@ -5,6 +5,8 @@ from App.controllers.assetstatus import *
 from App.controllers.employee import *
 from App.controllers.audit import *
 from App.controllers.room import *
+from App.controllers.building import *
+from App.controllers.floor import *
 from App.controllers.missingdevices import *
 from App.controllers.relocation import *
 from App.controllers.checkevent import *
@@ -49,12 +51,23 @@ def initialize():
 
         # ... (rest of your default data creation: rooms) ...
         # Make sure these use IDs that don't conflict if hardcoded (e.g., use strings '1', '2' if IDs are strings)
-       
+        print("Adding default buildings...")
+        building1 = create_building("Building A")
+        building2 = create_building("Building B")
+        print("Default buildings added.")
+
+        print("Adding default floors...")
+        floor1 = create_floor(building1.building_id, "Floor 1")
+        floor2 = create_floor(building1.building_id, "Floor 2")
+        floor3 = create_floor(building2.building_id, "Floor 1")
+        floor4 = create_floor(building2.building_id, "Floor 2")
+        print("Default floors added.")
+
         print("Adding default rooms...")
-        create_room( "Floor 1", "Building A", "Asset Room: 101")
-        create_room( "Floor 2", "Building A", "Asset Room: 201")
-        # create_room( "1", "Asset Room: 101")
-        # create_room( "2", "Asset Room: 201")
+        room1 = create_room(floor1.floor_id, "Asset Room: 101")
+        room2 = create_room(floor2.floor_id, "Asset Room: 201")
+        room3 = create_room(floor3.floor_id, "Asset Room: 301")
+        room4 = create_room(floor4.floor_id, "Asset Room: 401")
         print("Default rooms added.")
 
         print("Ensuring default values...")

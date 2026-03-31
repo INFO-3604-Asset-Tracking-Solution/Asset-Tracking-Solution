@@ -5,6 +5,9 @@ from App.controllers.audit import *
 from App.controllers.checkevent import *
 from App.controllers.user import *
 from App.controllers.audit import *
+from App.controllers.building import *
+from App.controllers.floor import *
+
 from flask import flash, redirect, url_for
 # from App.controllers.asset import (
 #     get_all_assets, 
@@ -63,7 +66,7 @@ def compare_audits(audit_id, audit_id2):
 @jwt_required()
 def audit_page():
     """Render the audit page with building data"""
-    buildings = get_all_building_json()
+    buildings = get_all_buildings_json()
     return render_template('audit.html', buildings=buildings), 200
 
 
