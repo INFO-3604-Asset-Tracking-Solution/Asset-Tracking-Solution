@@ -2,7 +2,7 @@ from App.models import db
 from sqlalchemy import Enum
 class AssetAuthorization(db.Model):
     __tablename__ = 'asset_authorizations'
-    authorization_id = db.Column(db.Integer, primary_key=True)
+    authorization_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     
     # Store asset details instead of a foreign key, because the asset DOES NOT exist in the Asset table yet.
     # When authorized, a new Asset will be created using these details. 
@@ -46,4 +46,4 @@ class AssetAuthorization(db.Model):
             "authorized_by": self.authorized_by,
             "authorization_date": self.authorization_date.strftime('%Y-%m-%d %H:%M:%S') if self.authorization_date else None,
             "authorization_status": self.authorization_status
-        }
+        }
