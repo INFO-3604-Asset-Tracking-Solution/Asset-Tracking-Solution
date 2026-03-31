@@ -6,6 +6,7 @@ from App.controllers.checkevent import *
 from App.controllers.user import *
 from App.controllers.audit import *
 from App.controllers.building import *
+from App.controllers.assetassignment import *
 from App.controllers.floor import *
 
 from flask import flash, redirect, url_for
@@ -214,13 +215,13 @@ def start_audit_api():
     audit = create_audit(current_user.user_id)
     return jsonify(audit.get_json()), 200
 
-@audit_views.route('/api/assets/<room_id>')
+@audit_views.route('/api/assets/<room_id>', methods=['GET'])
 @jwt_required()
 def get_room_assets(room_id):
     """Get all assets for a given room"""
     try:
         # Get assets for the room
-        room_assets = get_all_assets_by_room_json(room_id)
+        room_assets = get_asset_list_from_assignments_for_room_json(room_id)
         return jsonify(room_assets)
     except Exception as e:
         return jsonify({"error": str(e)}), 404

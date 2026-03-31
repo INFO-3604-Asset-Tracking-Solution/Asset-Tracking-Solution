@@ -6,6 +6,8 @@ from App.controllers.user import update_user
 from App.controllers.building import *
 from App.controllers.floor import *
 from App.controllers.room import *
+from App.controllers.assetassignment import *
+from App.controllers.assetauthorization import *
 import os
 import csv
 import io
@@ -372,7 +374,7 @@ def download_location_template():
 @settings_views.route('/api/buildings', methods=['GET'])
 @jwt_required()
 def get_buildings():
-    buildings = get_all_building_json()
+    buildings = get_all_buildings_json()
     return jsonify(buildings)
 
 @settings_views.route('/api/building/add', methods=['POST'])

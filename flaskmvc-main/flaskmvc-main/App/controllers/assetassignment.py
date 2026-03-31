@@ -1,4 +1,5 @@
 from App.models import AssetAssignment, Asset, Room, Employee
+from App.controllers.asset import get_asset
 from App.database import db
 from datetime import datetime
 
@@ -62,6 +63,20 @@ def get_assignments_by_asset(asset_id):
 
 def get_assignments_for_room(room_id):
     return AssetAssignment.query.filter_by(room_id = room_id, return_date = None).all()
+
+def get_assignments_for_room_json(room_id):
+    assignments = get_assignments_for_room(room_id)
+    if not assignments:
+        return[]
+    return [assignment.get_json() for assignment in assignments]
+
+def get_asset_list_from_assignments_for_room_json(room_id):
+    assignments = get_assignments_for_room(room_id)
+    if not assignments:
+        return None
+    assets = [assignment.get_json()['asset_id'] for assignment in assignments]
+    asset_list = [get_asset(asset_id).get_json() for asset_id in assets]
+    return asset_list
 
 def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, assignment_date=None, return_date=None, condition=None):
     assignment = get_asset_assignment_by_id(assignment_id)
