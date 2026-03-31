@@ -1,7 +1,7 @@
 from App.models import CheckEvent, Audit, Asset
 from App.database import db
 from datetime import datetime
-from App.controllers.assetassignment import get_asset_assignment_by_id
+from App.controllers.assetassignment import get_asset_assignment_by_id, get_current_asset_assignment
 
 
 def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id, status='found'):
@@ -51,3 +51,15 @@ def check_event_condition_discrepancy(check_event):
     if asset_assignment.condition != check_event.condition:
         return True
     return False
+    
+def get_check_event(check_id):
+    return CheckEvent.query.get(check_id)
+
+def update_check_event_condition(check_id, condition):
+    check_event = CheckEvent.query.get(check_id)
+    if not check_event:
+        return None
+    
+    check_event.condition = condition
+    db.session.commit()
+    return check_event

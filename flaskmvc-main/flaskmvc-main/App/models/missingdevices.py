@@ -7,15 +7,14 @@ class MissingDevice(db.Model):
     missing_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     audit_id = db.Column(db.String(30), db.ForeignKey('audit.audit_id'), nullable=False)
     assignment_id = db.Column(db.String(30), db.ForeignKey('asset_assignment.assignment_id'), nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     found_relocation_id = db.Column(db.String(30), db.ForeignKey('relocation.relocation_id'), nullable=True)
 
     # asset = db.relationship('Asset', backref='missing_records', lazy=True)
 
-    def __init__(self, audit_id, assignment_id, found_relocation_id=None):
+    def __init__(self, audit_id, assignment_id):
         self.audit_id = audit_id
         self.assignment_id = assignment_id
-        self.found_relocation_id = found_relocation_id
 
     def get_json(self):
         return {
