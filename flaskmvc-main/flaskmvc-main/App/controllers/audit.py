@@ -5,7 +5,7 @@ from datetime import datetime
 def create_audit(initiator_id):
 
     # Check if there is already an active audit
-    active_audit = Audit.query.filter(Audit.status.in_([ 'in_progress', 'pending'])).first()
+    active_audit = Audit.query.filter(Audit.status.in_([ 'IN_PROGRESS', 'PENDING'])).first()
     if active_audit:
         return active_audit
         
@@ -13,7 +13,7 @@ def create_audit(initiator_id):
         initiator_id = initiator_id,
         start_date = datetime.utcnow(),
         end_date = None,
-        status = "in_progress"
+        status = "IN_PROGRESS"
 
     )
     db.session.add(audit)
@@ -24,7 +24,7 @@ def create_audit(initiator_id):
 def end_audit():
     
     # Get the currently active audit
-    audit = Audit.query.filter(Audit.status.in_(['in_progress', 'pending'])).first()
+    audit = Audit.query.filter(Audit.status.in_(['IN_PROGRESS', 'PENDING'])).first()
 
     if not audit:
         return None
@@ -37,7 +37,7 @@ def end_audit():
     # Audit cannot finish without relocation table having all assets be relocated 
     
     audit.end_date = datetime.utcnow()
-    audit.status = "completed"
+    audit.status = "COMPLETED"
 
     db.session.commit()
 

@@ -18,7 +18,7 @@ def get_all_assets_json():
     assets = [asset.get_json() for asset in assets]
     return assets
 
-def add_asset(asset_id, description, brand, model, serial_number, cost, notes, status_name="Available"): 
+def add_asset(description, brand, model, serial_number, cost, notes, status_name="Available"): 
     try:
         status = AssetStatus.query.filter_by(status_name = status_name).first()
 
@@ -26,7 +26,6 @@ def add_asset(asset_id, description, brand, model, serial_number, cost, notes, s
             print(f"Invalid status: {status_name}")
         
         newAsset = Asset(
-            asset_id = asset_id, 
             description = description, 
             brand = brand, 
             model = model, 
