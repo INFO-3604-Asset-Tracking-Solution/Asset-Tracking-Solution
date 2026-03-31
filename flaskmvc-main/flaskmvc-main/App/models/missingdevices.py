@@ -12,10 +12,9 @@ class MissingDevice(db.Model):
 
     # asset = db.relationship('Asset', backref='missing_records', lazy=True)
 
-    def __init__(self, audit_id, assignment_id, found_relocation_id=None):
+    def __init__(self, audit_id, assignment_id):
         self.audit_id = audit_id
         self.assignment_id = assignment_id
-        self.found_relocation_id = found_relocation_id
 
     def get_json(self):
         return {

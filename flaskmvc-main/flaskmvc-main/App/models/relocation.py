@@ -3,7 +3,7 @@ from datetime import datetime
 from nanoid import generate
 
 def generate_short_id():
-    return generate(size=8)
+    return generate(size=10)
 
 class Relocation(db.Model):
     __tablename__ = 'relocation'
