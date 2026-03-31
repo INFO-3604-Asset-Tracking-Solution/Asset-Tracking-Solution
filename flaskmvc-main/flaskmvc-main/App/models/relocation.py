@@ -27,5 +27,6 @@ class Relocation(db.Model):
             'relocation_id': self.relocation_id,
             'check_id': self.check_id,
             'found_in_id': self.found_in_id,
+            'new_check_event_id': self.new_check_event_id,
             'timestamp': self.timestamp.isoformat()
         }
