@@ -77,10 +77,20 @@ def reject_asset(authorization_id, authorized_by_user_id):
         return None
 
 def get_pending_authorizations():
-    return AssetAuthorization.query.filter_by(authorization_status='Pending').all()
+    return AssetAuthorization.query.filter_by(authorization_status='Pending').order_by(AssetAuthorization.proposal_date.desc()).all()
 
 def get_all_authorizations():
-    return AssetAuthorization.query.all()
+    # Order by authorization_date (interaction time) first, then proposal_date
+    return AssetAuthorization.query.order_by(
+        AssetAuthorization.authorization_date.desc(),
+        AssetAuthorization.proposal_date.desc()
+    ).all()
+
+def get_authorizations_by_user(user_id):
+    return AssetAuthorization.query.filter_by(proposing_user_id=user_id).order_by(
+        AssetAuthorization.authorization_date.desc(),
+        AssetAuthorization.proposal_date.desc()
+    ).all()
 
 def update_proposal(authorization_id, **kwargs):
     """

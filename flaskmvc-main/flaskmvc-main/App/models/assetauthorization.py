@@ -19,6 +19,9 @@ class AssetAuthorization(db.Model):
     authorization_date = db.Column(db.DateTime, nullable=True)
     authorization_status = db.Column(Enum('Pending', 'Approved', 'Rejected', name='authorization_status_enum'), nullable=False, default='Pending')
 
+    proposer = db.relationship('User', foreign_keys=[proposing_user_id], backref='proposals')
+    authorizer = db.relationship('User', foreign_keys=[authorized_by], backref='authorizations_handled')
+
     def __init__(self, description, proposing_user_id, brand=None, model=None, serial_number=None, cost=None, notes=None):
         self.description = description
         self.proposing_user_id = proposing_user_id
