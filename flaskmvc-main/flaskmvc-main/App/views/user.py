@@ -27,13 +27,18 @@ def create_user_action():
     return redirect(url_for('user_views.get_user_page'))
 
 @user_views.route('/api/users', methods=['GET'])
+@jwt_required()
 def get_users_action():
+    if jwt_current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     users = get_all_users_json()
     return jsonify(users)
 
 @user_views.route('/api/users/create', methods=['POST'])
 @jwt_required()
 def create_user_endpoint():
+    if jwt_current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     """Create a new user (requires authentication)"""
     try:
         data = request.json
@@ -68,10 +73,12 @@ def create_user_endpoint():
 @user_views.route('/api/users/<int:user_id>/delete', methods=['POST'])
 @jwt_required()
 def delete_user_endpoint(user_id):
+    if jwt_current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     """Delete a user by ID (requires authentication)"""
     try:
         # Prevent deleting the current user
-        if int(jwt_current_user.id) == user_id:
+        if int(jwt_current_user.user_id) == user_id:
             return jsonify({
                 'success': False,
                 'message': 'You cannot delete your own account'
