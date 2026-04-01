@@ -1,20 +1,23 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from App.controllers.asset import get_all_assets_json, get_asset, update_asset_details, add_asset
-from App.controllers.assignee import get_all_assignees_json, get_assignee_by_id, get_or_create_assignee_by_name # Import new function
+from App.controllers.assignee import get_all_assignees_json, get_assignee_by_id, get_or_create_assignee_by_name  # Import new function
 from App.controllers.room import get_room
 from App.controllers.scanevent import add_scan_event, get_scans_by_asset
 from datetime import datetime
+from App.controllers.permissions import role_required
 
 inventory_views = Blueprint('inventory_views', __name__, template_folder='../templates')
 
 @inventory_views.route('/inventory', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can view inventory page
 def inventory_page():
     return render_template('inventory.html')
 
 @inventory_views.route('/api/assets', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can fetch asset list
 def get_assets():
     assets = get_all_assets_json()
     for asset in assets:
@@ -29,7 +32,7 @@ def get_assets():
         if asset.get('assignee_id'):
             assignee = get_assignee_by_id(asset['assignee_id'])
             if assignee:
-                asset['assignee_name'] = str(assignee) # Use __str__
+                asset['assignee_name'] = str(assignee)  # Use __str__
             else:
                 asset['assignee_name'] = f"Assignee ID: {asset['assignee_id']}"
         else:
@@ -38,6 +41,7 @@ def get_assets():
 
 @inventory_views.route('/asset/<asset_id>', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can view asset reports
 def asset_report(asset_id):
     asset = get_asset(asset_id)
     if not asset:
@@ -49,7 +53,7 @@ def asset_report(asset_id):
     last_location = get_room(asset.last_located) if asset.last_located else None
     last_location_name = last_location.room_name if last_location else "Unknown"
     assignee = get_assignee_by_id(asset.assignee_id) if asset.assignee_id else None
-    assignee_name = str(assignee) if assignee else "Unassigned" # Use __str__
+    assignee_name = str(assignee) if assignee else "Unassigned"  # Use __str__
     scan_events = get_scans_by_asset(asset_id)
     enriched_scan_events = []
     for event in scan_events:
@@ -71,7 +75,6 @@ def asset_report(asset_id):
                         event_dict[clean_key] = value
                     else:
                         event_dict[clean_key] = value
-            
             # Add room name
             scan_room = get_room(event.room_id)
             event_dict['room_name'] = scan_room.room_name if scan_room else f"Room {event.room_id}"
@@ -95,7 +98,7 @@ def asset_report(asset_id):
             return time_val
         else:
             return datetime.min
-    
+
     enriched_scan_events.sort(key=get_scan_time, reverse=True)
     return render_template('asset.html',
                           asset=asset,
@@ -106,6 +109,7 @@ def asset_report(asset_id):
 
 @inventory_views.route('/api/asset/<asset_id>/update', methods=['POST'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Managers or admins can update asset details
 def update_asset_details_endpoint(asset_id):
     data = request.json
     if not data:
@@ -141,12 +145,14 @@ def update_asset_details_endpoint(asset_id):
 
 @inventory_views.route('/api/assignees', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can fetch assignee list
 def get_assignees():
     assignees = get_all_assignees_json()
     return jsonify(assignees)
 
 @inventory_views.route('/api/asset/add', methods=['POST'])
 @jwt_required()
+@role_required('Administrator')  # Only administrators can add new assets
 def add_asset_api():
     data = request.json
     if not data:

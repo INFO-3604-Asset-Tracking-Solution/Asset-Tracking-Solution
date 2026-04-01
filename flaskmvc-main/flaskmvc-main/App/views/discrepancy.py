@@ -17,18 +17,21 @@ from App.controllers.asset import (
 from App.controllers.room import get_room, get_all_rooms
 from datetime import datetime
 from App.controllers.scanevent import add_scan_event
+from App.controllers.permissions import role_required  # Added for RBAC
 
 discrepancy_views = Blueprint('discrepancy_views', __name__, template_folder='../templates')
 
 # --- Existing routes remain the same ---
 @discrepancy_views.route('/discrepancy-report', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can view discrepancy page
 def discrepancy_report_page():
     # Default without loading data in template (will be loaded via API)
     return render_template('discrepancy.html')
 
 @discrepancy_views.route('/api/discrepancies', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can fetch discrepancies
 def get_discrepancies():
     """API endpoint to get all discrepancy assets"""
     discrepancies = get_discrepant_assets()
@@ -57,6 +60,7 @@ def get_discrepancies():
 
 @discrepancy_views.route('/api/rooms/all', methods=['GET'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Only managers/admins can fetch rooms for relocation
 def get_all_rooms_json():
     """API endpoint to get all rooms for relocation"""
     rooms = get_all_rooms()
@@ -67,6 +71,7 @@ def get_all_rooms_json():
 
 @discrepancy_views.route('/api/discrepancies/missing', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can fetch missing assets
 def get_missing():
     """API endpoint to get missing assets"""
     missing = get_assets_by_status("Missing")
@@ -74,6 +79,7 @@ def get_missing():
 
 @discrepancy_views.route('/api/discrepancies/misplaced', methods=['GET'])
 @jwt_required()
+@role_required('Auditor')  # Only auditors can fetch misplaced assets
 def get_misplaced():
     """API endpoint to get misplaced assets"""
     misplaced = get_assets_by_status("Misplaced")
@@ -81,6 +87,7 @@ def get_misplaced():
 
 @discrepancy_views.route('/api/asset/<asset_id>/mark-lost', methods=['POST'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Managers/admins can mark assets as lost
 def mark_asset_as_lost(asset_id):
     """API endpoint to mark an asset as lost"""
     asset = mark_asset_lost(asset_id, current_user.id)
@@ -96,6 +103,7 @@ def mark_asset_as_lost(asset_id):
 
 @discrepancy_views.route('/api/asset/<asset_id>/mark-found', methods=['POST'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Managers/admins can mark assets as found
 def mark_asset_as_found(asset_id):
     """API endpoint to mark an asset as found"""
     # Return to room is always true for this endpoint
@@ -112,6 +120,7 @@ def mark_asset_as_found(asset_id):
 
 @discrepancy_views.route('/api/asset/<asset_id>/relocate', methods=['POST'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Managers/admins can relocate assets
 def relocate_asset(asset_id):
     """API endpoint to mark an asset as found and relocate/reassign it (single item)"""
     data = request.json
@@ -187,9 +196,9 @@ def relocate_asset(asset_id):
         return jsonify({'success': False, 'message': f'Error updating asset: {str(e)}'}), 500
 
 
-
 @discrepancy_views.route('/api/assets/bulk-mark-found', methods=['POST'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Managers/admins can bulk mark assets found
 def bulk_mark_found_endpoint():
     """API endpoint for bulk marking assets as found"""
     data = request.json
@@ -228,6 +237,7 @@ def bulk_mark_found_endpoint():
 
 @discrepancy_views.route('/api/assets/bulk-relocate', methods=['POST'])
 @jwt_required()
+@role_required(['Manager', 'Administrator'])  # Managers/admins can bulk relocate assets
 def bulk_relocate_endpoint():
     """API endpoint for bulk relocating assets"""
     data = request.json
@@ -261,6 +271,7 @@ def bulk_relocate_endpoint():
         
 @discrepancy_views.route('/api/discrepancies/download', methods=['GET'])
 @jwt_required()
+@role_required(['Manager', 'Administrator', 'Auditor'])  # All roles can download discrepancy CSV
 def download_discrepancies():
     """API endpoint to download discrepancies as CSV"""
     filter_type = request.args.get('filter', 'all')

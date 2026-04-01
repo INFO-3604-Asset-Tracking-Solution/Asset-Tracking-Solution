@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request 
 from flask_jwt_extended import current_user, jwt_required
 from App.controllers.building import get_all_building_json
 from App.controllers.floor import get_floors_by_building
@@ -11,11 +11,13 @@ from App.controllers.asset import (
     mark_assets_missing
 )
 from App.controllers.assignee import get_assignee_by_id
+from App.decorators import role_required  # Added for role-based access
 
 audit_views = Blueprint('audit_views', __name__, template_folder='../templates')
 
 @audit_views.route('/audit')
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])  # Role access
 def audit_page():
     """Render the audit page with building data"""
     buildings = get_all_building_json()
@@ -23,6 +25,7 @@ def audit_page():
 
 @audit_views.route('/api/floors/<building_id>')
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
 def get_floors(building_id):
     """Get all floors for a given building"""
     floors = get_floors_by_building(building_id)
@@ -36,6 +39,7 @@ def get_floors(building_id):
 
 @audit_views.route('/api/rooms/<floor_id>')
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
 def get_rooms(floor_id):
     """Get all rooms for a given floor"""
     rooms = get_rooms_by_floor(floor_id)
@@ -49,6 +53,7 @@ def get_rooms(floor_id):
 
 @audit_views.route('/api/assets/<room_id>')
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
 def get_room_assets(room_id):
     """Get all assets for a given room"""
     try:
@@ -84,6 +89,7 @@ def get_room_assets(room_id):
 
 @audit_views.route('/api/asset/<asset_id>', methods=['GET'])
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
 def get_asset_by_id(asset_id):
     """Get a single asset by ID"""
     asset = get_asset(asset_id)
@@ -119,6 +125,7 @@ def get_asset_by_id(asset_id):
 
 @audit_views.route('/api/mark-assets-missing', methods=['POST'])
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
 def mark_missing():
     """Mark multiple assets as missing"""
     data = request.json
@@ -159,6 +166,7 @@ def mark_missing():
     
 @audit_views.route('/api/update-asset-location', methods=['POST'])
 @jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
 def update_location():
     """Update an asset's location"""
     data = request.json
