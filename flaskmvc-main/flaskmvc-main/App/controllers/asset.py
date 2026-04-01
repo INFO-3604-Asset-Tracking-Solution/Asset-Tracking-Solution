@@ -1,8 +1,11 @@
 from datetime import datetime
 from App.models import Asset, AssetStatus
-from sqlalchemy.exc import IntegrityError # Import IntegrityError
+from sqlalchemy.exc import IntegrityError
 from App.database import db
 import csv
+from App.models import Employee
+from App.controllers.employee import create_employee, get_employee_by_email
+
 
 
 def get_asset(asset_id):
@@ -56,6 +59,9 @@ def add_asset(description, brand, model, serial_number, cost, notes, status_name
         return None
 
 def upload_csv(file_path):
+    from App.controllers.room import get_room_by_name
+    from App.controllers.assetassignment import create_asset_assignment
+
     results = {
         'success': False,
         'total': 0,
@@ -65,18 +71,21 @@ def upload_csv(file_path):
     }
 
     try:
+        # 1. Ensure/Get the Placeholder Employee
+        placeholder_email = "bulk.import@auto.generated"
+        placeholder = get_employee_by_email(placeholder_email)
+        if not placeholder:
+            placeholder = create_employee("Bulk Import", "Placeholder", placeholder_email)
+            if not placeholder:
+                results['errors'].append("Critical Error: Could not create placeholder employee for assignments.")
+                return results
+
+        # 2. Process the CSV
         with open(file_path, 'r', encoding='utf-8-sig') as file:
             reader = csv.DictReader(file)
 
-            expected_columns = [
-                "Item", 
-                "Asset Tag", 
-                "Model", 
-                "Brand", 
-                "Serial Number",
-                "Cost", 
-                "Status"
-            ]
+            # Match the 6 columns approved in the plan
+            expected_columns = ["Item", "Brand", "Model", "Serial Number", "Cost", "Location"]
             actual_columns = [col.strip() for col in reader.fieldnames]
 
             missing_columns = [col for col in expected_columns if col not in actual_columns]
@@ -84,45 +93,70 @@ def upload_csv(file_path):
                 results['errors'].append(f"Missing required columns: {', '.join(missing_columns)}")
                 return results
 
-            for row_num, row in enumerate(reader, start=2):  # Start at 2 to account for header row
+            for row_num, row in enumerate(reader, start=2):
                 results['total'] += 1
-
+                
                 try:
-                    status_str = row.get("Status", "Available")
+                    item_name = (row.get("Item") or "").strip()
+                    location_name = (row.get("Location") or "").strip()
+                    
+                    if not item_name:
+                        results['errors'].append(f"Row {row_num}: Missing 'Item' description.")
+                        results['skipped'] += 1
+                        continue
+
+                    # Lookup Room
+                    if not location_name:
+                        results['errors'].append(f"Row {row_num}: Missing 'Location' (Room Name).")
+                        results['skipped'] += 1
+                        continue
+                        
+                    room = get_room_by_name(location_name)
+                    if not room:
+                        results['errors'].append(f"Row {row_num}: Room '{location_name}' not found.")
+                        results['skipped'] += 1
+                        continue
+
+                    # Add the Asset
+                    # Note: Using positional arguments as per current add_asset signature
+                    # description, brand, model, serial_number, cost, notes, status_name="Available"
+                    cost_val = None
+                    try:
+                        if row.get("Cost"):
+                            cost_val = float(str(row["Cost"]).replace('$', '').replace(',', ''))
+                    except:
+                        pass
 
                     new_asset = add_asset(
-                        asset_id= row["Asset Tag"],
-                        asset_status = status_str,
-                        description= row["Item"],
-                        model=row["Model"],
-                        brand=row["Brand"],
-                        serial_number=row["Serial Number"],
-                        cost = float(row["Cost"]) if row["Cost"] else None,
-                        notes= row.get("Notes", None)
+                        item_name,
+                        (row.get("Brand") or "").strip(),
+                        (row.get("Model") or "").strip(),
+                        (row.get("Serial Number") or "").strip(),
+                        cost_val,
+                        "Bulk Imported Asset",
+                        "Available"
                     )
 
                     if new_asset:
-                        results['imported'] += 1
+                        # Create Assignment
+                        assignment = create_asset_assignment(
+                            new_asset.asset_id,
+                            placeholder.employee_id,
+                            room.room_id,
+                            "Good"
+                        )
+                        if assignment:
+                            results['imported'] += 1
+                        else:
+                            results['errors'].append(f"Row {row_num}: Asset created but failed to link to Location.")
+                            results['imported'] += 1 # Still technically imported
                     else:
+                        results['errors'].append(f"Row {row_num}: Database error while creating asset.")
                         results['skipped'] += 1
 
-                except IntegrityError as e:
-                    db.session.rollback()
-                    # Check if it's specifically a duplicate primary key error
-                    # This check depends slightly on the DB engine, but often contains 'UNIQUE constraint' or 'Duplicate entry'
-                    error_str = str(e).lower() # Convert error to lowercase string for easier checking
-                    if 'unique constraint' in error_str \
-                    or 'duplicate entry' in error_str \
-                    or 'violates unique constraint' in error_str \
-                    or (hasattr(e, 'orig') and 'duplicate key value violates unique constraint' in str(e.orig).lower()): # More specific check for psycopg2
-                        results['errors'].append(f"Row {row_num}: Asset Tag '{row.get('Asset Tag', '')}' already exists, skipped.")
-                    else:
-                        # Other type of IntegrityError (e.g., foreign key violation if a room didn't exist and wasn't handled)
-                        results['errors'].append(f"Row {row_num}: Database integrity error - {str(e)}")
-                    results['skipped'] += 1
                 except Exception as e:
                     db.session.rollback()
-                    results['errors'].append(f"Row {row_num}: Error processing row - {str(e)}")
+                    results['errors'].append(f"Row {row_num}: Unexpected error - {str(e)}")
                     results['skipped'] += 1
 
             # Set success if at least one asset was imported
