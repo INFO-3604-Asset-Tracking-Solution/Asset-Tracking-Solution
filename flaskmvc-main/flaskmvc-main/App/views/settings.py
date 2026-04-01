@@ -52,16 +52,16 @@ def update_user_settings():
                 return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
         
         # Add logging
-        print(f"Updating user {current_user.id} - {username} - {email}")
+        print(f"Updating user {current_user.user_id} - {username} - {email}")
         
         try:
             # Call controller to update user
             if new_password:
                 # Update with new password
-                result = update_user(current_user.id, email, username, new_password)
+                result = update_user(current_user.user_id, email, username, new_password)
             else:
                 # Update without changing password
-                result = update_user(current_user.id, email, username)
+                result = update_user(current_user.user_id, email, username)
             
             if result is not None:  # Check for None explicitly, as 0 could be a valid result
                 return jsonify({'success': True, 'message': 'User updated successfully'})
@@ -79,6 +79,8 @@ def update_user_settings():
 @settings_views.route('/api/upload/assets-csv', methods=['POST'])
 @jwt_required()
 def upload_assets_csv():
+    if current_user.role not in ['Administrator', 'Manager']:
+        return jsonify({'success': False, 'message': 'Access denied: Insufficient permissions'}), 403
     if 'csvFile' not in request.files:
         return jsonify({'success': False, 'message': 'No file part'}), 400
     
@@ -123,6 +125,8 @@ def upload_assets_csv():
 @settings_views.route('/api/upload/locations-csv', methods=['POST'])
 @jwt_required()
 def upload_locations_csv():
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     if 'csvFile' not in request.files:
         return jsonify({'success': False, 'message': 'No file part'}), 400
     
@@ -380,6 +384,8 @@ def get_buildings():
 @settings_views.route('/api/building/add', methods=['POST'])
 @jwt_required()
 def add_building():
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     data = request.json
     
     if not data or 'building_name' not in data:
@@ -410,6 +416,8 @@ def add_building():
 @settings_views.route('/api/building/<building_id>/update', methods=['POST'])
 @jwt_required()
 def update_building_endpoint(building_id):
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     data = request.json
     
     if not data or 'building_name' not in data:
@@ -443,6 +451,8 @@ def update_building_endpoint(building_id):
 @settings_views.route('/api/building/<building_id>/delete', methods=['DELETE'])
 @jwt_required()
 def delete_building_endpoint(building_id):
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     if get_floors_by_building(building_id):
         return jsonify({
             'success': False,
@@ -475,6 +485,8 @@ def get_building_floors(building_id):
 @settings_views.route('/api/floor/add', methods=['POST'])
 @jwt_required()
 def add_floor():
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     data = request.json
     
     if not data or 'building_id' not in data or 'floor_name' not in data:
@@ -512,6 +524,8 @@ def add_floor():
 @settings_views.route('/api/floor/<floor_id>/update', methods=['POST'])
 @jwt_required()
 def update_floor_endpoint(floor_id):
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     data = request.json
     
     if not data or 'building_id' not in data or 'floor_name' not in data:
@@ -536,6 +550,8 @@ def update_floor_endpoint(floor_id):
 @settings_views.route('/api/floor/<floor_id>/delete', methods=['DELETE'])
 @jwt_required()
 def delete_floor_endpoint(floor_id):
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     # Prevent deletion if there are rooms linked to the floor
     if get_rooms_by_floor(floor_id):
         return jsonify({
@@ -569,6 +585,8 @@ def get_floor_rooms(floor_id):
 @settings_views.route('/api/room/add', methods=['POST'])
 @jwt_required()
 def add_room():
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     data = request.json
     
     if not data or 'floor_id' not in data or 'room_name' not in data:
@@ -606,6 +624,8 @@ def add_room():
 @settings_views.route('/api/room/<room_id>/update', methods=['POST'])
 @jwt_required()
 def update_room_endpoint(room_id):
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     data = request.json
     
     if not data or 'floor_id' not in data or 'room_name' not in data:
@@ -630,6 +650,8 @@ def update_room_endpoint(room_id):
 @settings_views.route('/api/room/<room_id>/delete', methods=['DELETE'])
 @jwt_required()
 def delete_room_endpoint(room_id):
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     if get_all_assets_by_room_id(room_id):
         return jsonify({
             'success': False,
@@ -651,6 +673,8 @@ def delete_room_endpoint(room_id):
 @settings_views.route('/api/users', methods=['GET'])
 @jwt_required()
 def get_all_users_api():
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     """Get all users for the user management section"""
     from App.controllers.user import get_all_users_json
     users = get_all_users_json()
@@ -659,6 +683,8 @@ def get_all_users_api():
 @settings_views.route('/api/user/create', methods=['POST'])
 @jwt_required()
 def create_user_api():
+    if current_user.role != 'Administrator':
+        return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     """Create a new user"""
     from App.controllers.user import create_user, get_user_by_email
     

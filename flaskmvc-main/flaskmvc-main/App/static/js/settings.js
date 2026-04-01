@@ -10,6 +10,13 @@ document.addEventListener('DOMContentLoaded', function () {
     CsvUploader.init();
     LocationManager.init();
     UserManager.init();
+
+    // Check for pending success messages from previous page load
+    const pendingMessage = sessionStorage.getItem('settingsSuccessMessage');
+    if (pendingMessage) {
+        UIHelper.showStatusMessage('Success', pendingMessage, 'success');
+        sessionStorage.removeItem('settingsSuccessMessage');
+    }
 });
 
 /**
@@ -112,11 +119,15 @@ const AccountSettings = {
             const result = await response.json();
 
             if (response.ok) {
-                UIHelper.showStatusMessage('Success', 'Account settings updated successfully.', 'success');
                 // Clear password fields after successful update
                 document.getElementById('currentPassword').value = '';
                 document.getElementById('newPassword').value = '';
                 document.getElementById('confirmPassword').value = '';
+                
+                // Store success message and reload to update navbar UI
+                sessionStorage.setItem('settingsSuccessMessage', 'Account settings updated successfully.');
+                location.reload();
+
             } else {
                 UIHelper.showStatusMessage('Error', result.message || 'Failed to update account settings.', 'danger');
             }
@@ -244,6 +255,9 @@ const CsvUploader = {
  */
 const LocationManager = {
     init: function () {
+        const locationContent = document.getElementById('location-content');
+        if (!locationContent) return;
+
         this.initTabs();
         this.initSelectors();
         this.initButtons();
@@ -1123,6 +1137,9 @@ const LocationManager = {
  */
 const UserManager = {
     init: function () {
+        // Check if user management section exists
+        const userContent = document.getElementById('user-management-content');
+        if (!userContent) return;
         // Load users when the tab is shown
         const userManagementTab = document.getElementById('user-management-tab');
         if (userManagementTab) {
