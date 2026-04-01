@@ -11,6 +11,7 @@ from App.controllers.missingdevices import *
 from App.controllers.relocation import *
 from App.controllers.checkevent import *
 from App.controllers.notification import *
+from App.controllers.assetauthorization import *
 from App.models import Employee
 from datetime import datetime
 from App.database import db
@@ -82,6 +83,8 @@ def initialize():
             create_asset_status("Misplaced")
         if not get_asset_status_by_name("Lost"):
             create_asset_status("Lost")
+        if not get_asset_status_by_name("Available"):
+            create_asset_status("Available")
         print("Default asset statuses added.")
 
         print("Adding sample assets...")
@@ -138,6 +141,22 @@ def initialize():
         if a3 and user3:
             create_asset_assignment(a3.asset_id, user3.user_id, room2.room_id, "Good")
         print("Asset assignments added.")
+
+        print("Adding sample asset authorizations...")
+        # Pending Proposals
+        propose_asset("iPad Pro 12.9", user3.user_id, "Apple", "A2378", "SN-APPLE-999", 1099.00, "For design team")
+        propose_asset("Sony WH-1000XM4", user3.user_id, "Sony", "XM4", "SN-SONY-777", 349.00, "Noise cancelling headphones")
+        
+        # Approved Proposal
+        p_approved = propose_asset("MacBook Pro 14", user3.user_id, "Apple", "M1 Pro", "SN-APPLE-111", 1999.00, "New development machine")
+        if p_approved:
+            approve_asset(p_approved.authorization_id, user2.user_id)
+            
+        # Rejected Proposal
+        p_rejected = propose_asset("Gaming Chair", user3.user_id, "SecretLab", "Titan", "SN-CHAIR-001", 499.00, "Ergonomic chair")
+        if p_rejected:
+            reject_asset(p_rejected.authorization_id, user2.user_id)
+        print("Sample asset authorizations added.")
 
         print("--- Database Initialization Finished Successfully ---")
 

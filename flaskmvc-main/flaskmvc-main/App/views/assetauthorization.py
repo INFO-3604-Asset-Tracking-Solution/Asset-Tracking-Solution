@@ -7,7 +7,8 @@ from App.controllers.assetauthorization import (
     get_pending_authorizations,
     get_all_authorizations,
     update_proposal,
-    delete_proposal
+    delete_proposal,
+    get_authorizations_by_user
 )
 
 asset_auth_views = Blueprint('asset_auth_views', __name__, template_folder='../templates')
@@ -15,18 +16,42 @@ asset_auth_views = Blueprint('asset_auth_views', __name__, template_folder='../t
 @asset_auth_views.route('/authorizations', methods=['GET'])
 @jwt_required()
 def authorizations_page():
-    return render_template('authorizations.html')
+    role = current_user.role
+    
+    if role in ['Administrator', 'Manager']:
+        pending_auths = get_pending_authorizations()
+        history_auths = get_all_authorizations()
+    else:
+        all_user_auths = get_authorizations_by_user(current_user.user_id)
+        pending_auths = [a for a in all_user_auths if a.authorization_status == 'Pending']
+        history_auths = all_user_auths
+        
+    return render_template(
+        'authorizations.html', 
+        active_page='authorizations',
+        pending_auths=pending_auths,
+        history_auths=history_auths
+    )
 
 @asset_auth_views.route('/api/authorizations', methods=['GET'])
 @jwt_required()
 def get_authorizations():
-    auths = get_all_authorizations()
+    if current_user.role in ['Administrator', 'Manager']:
+        auths = get_all_authorizations()
+    else:
+        auths = get_authorizations_by_user(current_user.user_id)
+        
     return jsonify([a.get_json() for a in auths]), 200
 
 @asset_auth_views.route('/api/authorizations/pending', methods=['GET'])
 @jwt_required()
 def get_pending_auths():
-    auths = get_pending_authorizations()
+    if current_user.role in ['Administrator', 'Manager']:
+        auths = get_pending_authorizations()
+    else:
+        all_user_auths = get_authorizations_by_user(current_user.user_id)
+        auths = [a for a in all_user_auths if a.authorization_status == 'Pending']
+
     return jsonify([a.get_json() for a in auths]), 200
 
 @asset_auth_views.route('/api/authorizations/propose', methods=['POST'])
@@ -74,19 +99,20 @@ def delete_proposal_api(auth_id):
 @asset_auth_views.route('/api/authorizations/<int:auth_id>/approve', methods=['POST'])
 @jwt_required()
 def approve_proposal(auth_id):
-    data = request.json
-    asset_tag = data.get('asset_tag')
-    if not asset_tag:
-        return jsonify({'message': 'Asset tag is required for approval'}), 400
-    
-    new_asset = approve_asset(auth_id, current_user.user_id, asset_tag)
+    if current_user.role not in ['Administrator', 'Manager']:
+        return jsonify({'message': 'Access denied: Only Managers can approve assets'}), 403
+
+    new_asset = approve_asset(auth_id, current_user.user_id)
     if new_asset:
         return jsonify({'message': 'Asset approved and created', 'asset': new_asset.get_json()}), 200
-    return jsonify({'message': 'Approval failed. Check if proposal is pending or asset tag is unique.'}), 400
+    return jsonify({'message': 'Approval failed. Check if proposal is pending.'}), 400
 
 @asset_auth_views.route('/api/authorizations/<int:auth_id>/reject', methods=['POST'])
 @jwt_required()
 def reject_proposal(auth_id):
+    if current_user.role not in ['Administrator', 'Manager']:
+        return jsonify({'message': 'Access denied: Only Managers can reject assets'}), 403
+
     proposal = reject_asset(auth_id, current_user.user_id)
     if proposal:
         return jsonify({'message': 'Proposal rejected', 'proposal': proposal.get_json()}), 200

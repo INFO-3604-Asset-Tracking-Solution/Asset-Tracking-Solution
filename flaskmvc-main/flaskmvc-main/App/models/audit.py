@@ -16,7 +16,7 @@ class Audit(db.Model):
     status = db.Column(Enum('PENDING', 'IN_PROGRESS', 'COMPLETED', name='audit_status'), nullable=False)
 
     missing_devices = db.relationship('MissingDevice', backref='audit', lazy=True)
-
+    initiator = db.relationship('User', foreign_keys=[initiator_id], backref=db.backref('initiated_audits', overlaps="audits,user"), overlaps="audits,user")
 
     def __init__(self, initiator_id, status, start_date=None, end_date=None):
         self.initiator_id = initiator_id
@@ -28,6 +28,7 @@ class Audit(db.Model):
         return {
             'audit_id': self.audit_id,
             'initiator_id': self.initiator_id,
+            'initiator_username': self.initiator.username if self.initiator else 'Unknown',
             'start_date': self.start_date,
             'end_date': self.end_date,
             'status': self.status
