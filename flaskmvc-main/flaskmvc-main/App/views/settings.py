@@ -331,10 +331,10 @@ def download_asset_template():
     writer = csv.writer(csv_content)
     
     # Write header row
-    writer.writerow(['Item', 'Asset Tag', 'Brand', 'Model', 'Serial Number', 'Location', 'Condition', 'Assignee'])
+    writer.writerow(['Item', 'Brand', 'Model', 'Serial Number', 'Cost', 'Location'])
     
     # Write example row
-    writer.writerow(['Laptop', 'A001', 'Dell', 'XPS 15', 'SN12345', '1', 'Good', '1'])
+    writer.writerow(['Laptop', 'Dell', 'XPS 15', 'SN12345', '1200.00', 'Asset Room: 101'])
     
     # Create a response with the CSV content
     csv_content.seek(0)

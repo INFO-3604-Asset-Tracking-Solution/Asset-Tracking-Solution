@@ -45,6 +45,9 @@ def update_room(room_id, floor_id=None, room_name=None):
         print(f"Error updating room: {e}")
         return None
 
+def get_room_by_name(room_name):
+    return Room.query.filter(db.func.lower(Room.room_name) == room_name.lower()).first()
+
 def delete_room(room_id):
     room = get_room(room_id)
     if not room:
