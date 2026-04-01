@@ -393,7 +393,7 @@ def add_building():
     # Generate a unique building ID
     building_id = f"B{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
-    building = create_building(building_id, building_name)
+    building = create_building(building_name)
     
     if building:
         return jsonify({
@@ -494,7 +494,7 @@ def add_floor():
     # Generate a unique floor ID
     floor_id = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
-    floor = create_floor(floor_id, building_id, floor_name)
+    floor = create_floor(building_id, floor_name)
     
     if floor:
         return jsonify({
@@ -588,7 +588,7 @@ def add_room():
     # Generate a unique room ID
     room_id = f"R{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
-    room = create_room(room_id, floor_id, room_name)
+    room = create_room(floor_id, room_name)
     
     if room:
         return jsonify({

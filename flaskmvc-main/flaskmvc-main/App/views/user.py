@@ -39,14 +39,14 @@ def create_user_endpoint():
         data = request.json
         
         # Validate required fields
-        if not data or not all(key in data for key in ['email', 'username', 'password']):
+        if not data or not all(key in data for key in ['email', 'username', 'password', 'role']):
             return jsonify({
                 'success': False, 
-                'message': 'Email, username, and password are required'
+                'message': 'Email, username, password, and role are required'
             }), 400
             
         # Create the user
-        user = create_user(data['email'], data['username'], data['password'])
+        user = create_user(data['email'], data['username'], data['password'], data['role'])
         
         if user:
             return jsonify({

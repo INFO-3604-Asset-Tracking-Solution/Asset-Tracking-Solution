@@ -375,6 +375,15 @@
                             <input type="text" class="form-control" id="newUserUsername" name="newUserUsername" required>
                         </div>
                         <div class="mb-3">
+                            <label for="newUserRole" class="form-label">Role</label>
+                            <select class="form-select" id="newUserRole" name="newUserRole" required>
+                                <option value="" disabled selected>Select role...</option>
+                                <option value="Administrator">Administrator</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Auditor">Auditor</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="newUserPassword" class="form-label">Password</label>
                             <input type="password" class="form-control" id="newUserPassword" name="newUserPassword" required>
                             <div class="password-strength-meter mt-2">
