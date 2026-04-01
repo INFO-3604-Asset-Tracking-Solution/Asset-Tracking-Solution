@@ -91,21 +91,21 @@ def initialize():
         a4 = add_asset("Samsung 27\" Monitor", "Samsung", "S27R350", "SN-SAM-321", 200.00, "Desk monitor", "Good")
         print("Sample assets added.")
 
-        # Get room IDs (they are likely 1, 2)
+        # Get room IDs 
         room1 = Room.query.first()
         room2 = Room.query.offset(1).first()
 
         print("Adding default audits...")
-        # Note: Audit status must be uppercase to match the model's Enum
+        
         audit1 = create_audit(user1.user_id) # Should be in_progress by default
+        end_audit()
         
         # Manually create some completed audits for history
         audit2 = create_audit(user2.user_id)
         end_audit()
         
         audit3 = create_audit(user2.user_id)
-        end_audit()
-        
+         
         db.session.commit()
         print("Default audits added.")
 
