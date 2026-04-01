@@ -1,17 +1,23 @@
 import os
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer # type: ignore
 from App.models import User
 from App.database import db
-from werkzeug.security import generate_password_hash
 
-def create_user(email, username, password):
+VALID_ROLES = ["Administrator", "Manager", "Auditor"]
+
+
+def create_user(email, username, password, role="Auditor"):
     # Check if email already exists
     existing_user = User.query.filter_by(email=email).first()
     if existing_user:
         return None
+
+    # Validate role
+    if role not in VALID_ROLES:
+        return None
         
-    # Create new user
-    new_user = User(email=email, username=username, password=password)
+    # Create new user with role
+    new_user = User(email=email, username=username, password=password, role=role)
     
     try:
         db.session.add(new_user)
@@ -22,26 +28,31 @@ def create_user(email, username, password):
         print(f"Error creating user: {e}")
         return None
 
+
 def get_user_by_username(username):
     return User.query.filter_by(username=username).first()
+
 
 def get_user_by_email(email):
     return User.query.filter_by(email=email).first()
 
+
 def get_user(id):
     return User.query.get(id)
 
+
 def get_all_users():
     return User.query.all()
+
 
 def get_all_users_json():
     users = User.query.all()
     if not users:
         return []
-    users = [user.get_json() for user in users]
-    return users
+    return [user.get_json() for user in users]
 
-def update_user(id, email, username, new_password=None):
+
+def update_user(id, email, username, new_password=None, role=None):
     try:
         # Convert id to integer if it's a string
         if isinstance(id, str) and id.isdigit():
@@ -64,16 +75,22 @@ def update_user(id, email, username, new_password=None):
         # Update password if provided
         if new_password:
             user.set_password(new_password)
+
+        # Update role if provided
+        if role:
+            if role in VALID_ROLES:
+                user.role = role
             
-        # Add the user and commit the changes
+        # Commit changes
         db.session.add(user)
         db.session.commit()
         return True
+
     except Exception as e:
-        # Rollback the session
         db.session.rollback()
         print(f"Error updating user: {e}")
         return None
+
 
 def delete_user(id):
     try:
@@ -87,13 +104,16 @@ def delete_user(id):
         db.session.rollback()
         print(f"Error deleting user: {e}")
         return False
-    
-  
+
+
+# 🔐 Password Reset Logic
+
 def generate_reset_token(email):
     """Generate a secure time-limited token for password reset"""
     secret_key = os.environ.get('SECRET_KEY', 'default-secret-key')
     serializer = URLSafeTimedSerializer(secret_key)
     return serializer.dumps(email, salt='password-reset-salt')
+
 
 def verify_reset_token(token, expiration=3600):
     """Verify the reset token and return the associated email"""
@@ -109,6 +129,7 @@ def verify_reset_token(token, expiration=3600):
     except (SignatureExpired, BadSignature):
         return None
 
+
 def reset_password(email, new_password):
     """Reset a user's password using their email"""
     user = get_user_by_email(email)
@@ -122,4 +143,3 @@ def reset_password(email, new_password):
             print(f"Error resetting password: {e}")
             return False
     return False
-
