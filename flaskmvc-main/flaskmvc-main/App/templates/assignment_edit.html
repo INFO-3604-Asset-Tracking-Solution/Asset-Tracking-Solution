@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Assignment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="p-4">
+
+<h3>Edit Assignment</h3>
+
+<div class="card p-4">
+
+    <label>Assignment ID</label>
+    <input id="assignmentId" class="form-control mb-2" value="{{ assignment.assignment_id }}" disabled>
+
+    <label>Asset ID</label>
+    <input id="assetId" class="form-control mb-2" value="{{ assignment.asset_id }}" disabled>
+
+    <label>Employee ID</label>
+    <input id="employeeId" class="form-control mb-2" value="{{ assignment.employee_id }}" disabled>
+
+    <label>Room ID</label>
+    <input id="roomId" class="form-control mb-2" value="{{ assignment.room_id }}" disabled>
+
+    <label>Condition</label>
+    <select id="condition" class="form-select mb-2">
+        <option value="Good" {% if assignment.condition == 'Good' %}selected{% endif %}>Good</option>
+        <option value="Needs Repair" {% if assignment.condition == 'Needs Repair' %}selected{% endif %}>Needs Repair</option>
+        <option value="Beyond Repair" {% if assignment.condition == 'Beyond Repair' %}selected{% endif %}>Beyond Repair</option>
+    </select>
+
+    <label>Status</label>
+    <select id="status" class="form-select mb-2">
+        <option value="Active" {% if assignment.status == 'Active' %}selected{% endif %}>Active</option>
+        <option value="Completed" {% if assignment.status == 'Completed' %}selected{% endif %}>Completed</option>
+        <option value="Overdue" {% if assignment.status == 'Overdue' %}selected{% endif %}>Overdue</option>
+    </select>
+
+    <label>Return Date</label>
+    <input type="date" id="returnDate" class="form-control mb-3"
+           value="{{ assignment.return_date.strftime('%Y-%m-%d') if assignment.return_date else '' }}">
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-secondary" onclick="history.back()">Cancel</button>
+        <button class="btn btn-success" onclick="updateAssignment()">Update</button>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+
+</body>
+</html>
