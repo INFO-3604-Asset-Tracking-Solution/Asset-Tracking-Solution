@@ -1,0 +1,361 @@
+{% extends "layout.html" %}
+{% set active_page = 'authorizations' %}
+{% block title %}Asset Authorizations - iGOVTT{% endblock %}
+
+{% block page_css %}
+<style>
+    .auth-container {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: calc(100vh - 60px);
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        font-weight: 700;
+        color: #2d3436;
+        font-size: 1.75rem;
+        position: relative;
+    }
+
+    .page-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 50px;
+        height: 4px;
+        background: linear-gradient(90deg, #6c5ce7 0%, #a29bfe 100%);
+        border-radius: 2px;
+    }
+
+    /* Tab Styling */
+    .nav-tabs {
+        border-bottom: none;
+        gap: 1rem;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: #b2bec3;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    .nav-tabs .nav-link:hover {
+        background: rgba(108, 92, 231, 0.05);
+        color: #6c5ce7;
+    }
+
+    .nav-tabs .nav-link.active {
+        background: #6c5ce7;
+        color: white;
+        box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+    }
+
+    .auth-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        background-color: rgba(248, 249, 250, 0.5);
+        border-bottom: 2px solid #eee;
+        color: #b2bec3;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .table tbody td {
+        padding: 1.25rem 1.5rem;
+        vertical-align: middle;
+        color: #2d3436;
+        font-weight: 500;
+        border-bottom: 1px solid #eee;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.35rem 0.85rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-pending { background-color: #fff4e5; color: #f39c12; }
+    .status-approved { background-color: #d1f7e6; color: #10ac84; }
+    .status-rejected { background-color: #ffeaa7; color: #d63031; }
+
+    .btn-approve {
+        background: linear-gradient(90deg, #00b894 0%, #55efc4 100%);
+        color: white; border: none; font-weight: 600;
+    }
+    .btn-reject {
+        background: linear-gradient(90deg, #fab1a0 0%, #ff7675 100%);
+        color: white; border: none; font-weight: 600;
+    }
+    .btn-action {
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    .btn-action:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .text-dim { color: #b2bec3; font-size: 0.85rem; }
+    
+    .badge-count {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        margin-left: 0.5rem;
+        border-radius: 10px;
+        background: rgba(0,0,0,0.1);
+    }
+    .nav-link.active .badge-count {
+        background: rgba(255,255,255,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="page-header">
+        <h1 class="page-title">Asset Authorizations</h1>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="authTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="true">
+                Pending <span class="badge-count">{{ pending_auths|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">
+                History
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="authTabsContent">
+        <!-- PENDING TAB -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+            <div class="auth-card">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Asset Description</th>
+                                <th>Details</th>
+                                <th>Proposed By</th>
+                                <th>Date & Time</th>
+                                {% if current_user.role in ['Administrator', 'Manager'] %}
+                                <th class="text-end">Actions</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for auth in pending_auths %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ auth.description }}</div>
+                                    <div class="text-muted small">{{ auth.brand }} {{ auth.model }}</div>
+                                </td>
+                                <td>
+                                    <div class="small">SN: {{ auth.serial_number or 'N/A' }}</div>
+                                    <div class="small">Cost: ${{ "%.2f"|format(auth.cost) if auth.cost else '0.00' }}</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm me-2 bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="bi bi-person text-secondary"></i>
+                                        </div>
+                                        <span>{{ auth.proposer.username if auth.proposer else 'Unknown' }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="small font-monospace text-primary">{{ auth.proposal_date.strftime('%Y-%m-%d') }}</div>
+                                    <div class="small text-muted">{{ auth.proposal_date.strftime('%I:%M %p') }}</div>
+                                </td>
+                                {% if current_user.role in ['Administrator', 'Manager'] %}
+                                <td class="text-end">
+                                    <button class="btn btn-action btn-approve me-1 btn-approve-proposal" data-id="{{ auth.authorization_id }}">
+                                        Approve
+                                    </button>
+                                    <button class="btn btn-action btn-reject btn-reject-proposal" data-id="{{ auth.authorization_id }}">
+                                        Reject
+                                    </button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-state">
+                                    <i class="bi bi-clipboard-check text-dim display-4 d-block mb-3"></i>
+                                    <h5 class="text-dim">No Pending Requests</h5>
+                                    <p class="text-muted small">All proposed assets have been processed.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORY TAB -->
+        <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+            <div class="auth-card">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Proposed By</th>
+                                <th>Status</th>
+                                <th>Process Details</th>
+                                <th>Date Proposed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for auth in history_auths %}
+                            {% if auth.authorization_status != 'Pending' or current_user.role == 'Auditor' %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ auth.description }}</div>
+                                    <div class="text-muted small">{{ auth.brand }} {{ auth.model }}</div>
+                                </td>
+                                <td>{{ auth.proposer.username if auth.proposer else 'Unknown' }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ auth.authorization_status|lower }}">
+                                        <i class="bi {% if auth.authorization_status == 'Approved' %}bi-check-circle{% elif auth.authorization_status == 'Rejected' %}bi-x-circle{% else %}bi-clock{% endif %} me-1"></i>
+                                        {{ auth.authorization_status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if auth.authorization_status == 'Approved' %}
+                                        <div class="small">By: {{ auth.authorizer.username if auth.authorizer else 'Unknown' }}</div>
+                                        <div class="small text-muted">On: {{ auth.authorization_date.strftime('%Y-%m-%d') if auth.authorization_date else 'N/A' }}</div>
+                                    {% elif auth.authorization_status == 'Rejected' %}
+                                        <div class="small text-muted">By: {{ auth.authorizer.username if auth.authorizer else 'Unknown' }}</div>
+                                    {% else %}
+                                        <span class="text-muted small italic">Waiting...</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="small">{{ auth.proposal_date.strftime('%Y-%m-%d') }}</div>
+                                    <div class="small text-muted">{{ auth.proposal_date.strftime('%I:%M %p') }}</div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-state">
+                                    <i class="bi bi-journal-text text-dim display-4 d-block mb-3"></i>
+                                    <h5 class="text-dim">No History Available</h5>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Approve buttons
+        document.querySelectorAll('.btn-approve-proposal').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                approveProposal(id);
+            });
+        });
+
+        // Reject buttons
+        document.querySelectorAll('.btn-reject-proposal').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                rejectProposal(id);
+            });
+        });
+    });
+
+    async function approveProposal(id) {
+        if (!confirm('Are you sure you want to approve this asset? A unique ID will be automatically generated.')) return;
+
+        try {
+            const response = await fetch(`/api/authorizations/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error approving asset.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to connect to server.');
+        }
+    }
+
+    async function rejectProposal(id) {
+        if (!confirm('Are you sure you want to reject this proposal?')) return;
+
+        try {
+            const response = await fetch(`/api/authorizations/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert(data.message || 'Error rejecting asset.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to connect to server.');
+        }
+    }
+</script>
+{% endblock %}

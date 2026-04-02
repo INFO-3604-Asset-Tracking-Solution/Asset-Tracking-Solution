@@ -1,19 +1,22 @@
 from App.database import db
 from datetime import datetime
-import uuid
 from sqlalchemy import Enum
+from nanoid import generate
+
+def generate_short_id():
+    return generate(size=8)
 
 class Audit(db.Model):
     __tablename__ = 'audit'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    initiator_id = db.Column(db.String(30), db.ForeignKey('user.user_id'), nullable=False)
+    audit_id = db.Column(db.String(30), primary_key=True, default=generate_short_id)
+    initiator_id = db.Column(db.Integer, db.ForeignKey('user.user_id'), nullable=False)
     start_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     end_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(Enum('pending', 'in_progress', 'completed', name='audit_status'), nullable=False)
+    status = db.Column(Enum('PENDING', 'IN_PROGRESS', 'COMPLETED', name='audit_status'), nullable=False)
 
-    relocations = db.relationship('Relocation', backref='audit', lazy=True)
     missing_devices = db.relationship('MissingDevice', backref='audit', lazy=True)
+    initiator = db.relationship('User', foreign_keys=[initiator_id], backref=db.backref('initiated_audits', overlaps="audits,user"), overlaps="audits,user")
 
     def __init__(self, initiator_id, status, start_date=None, end_date=None):
         self.initiator_id = initiator_id
@@ -23,8 +26,9 @@ class Audit(db.Model):
 
     def get_json(self):
         return {
-            'id': self.id,
+            'audit_id': self.audit_id,
             'initiator_id': self.initiator_id,
+            'initiator_username': self.initiator.username if self.initiator else 'Unknown',
             'start_date': self.start_date,
             'end_date': self.end_date,
             'status': self.status

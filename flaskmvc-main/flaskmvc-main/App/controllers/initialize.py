@@ -1,139 +1,162 @@
 from .user import create_user
 from App.controllers.asset import *
 from App.controllers.assetassignment import *
-from App.controllers.assignee import *
+from App.controllers.assetstatus import *
+from App.controllers.employee import *
+from App.controllers.audit import *
+from App.controllers.room import *
 from App.controllers.building import *
 from App.controllers.floor import *
-from App.controllers.provider import *
-from App.controllers.room import *
-from App.controllers.scanevent import *
+from App.controllers.missingdevices import *
+from App.controllers.relocation import *
+from App.controllers.checkevent import *
+from App.controllers.notification import *
+from App.controllers.assetauthorization import *
+from App.models import Employee
 from datetime import datetime
 from App.database import db
 from sqlalchemy import inspect
 
-from sqlalchemy import inspect # Add this import
-from App.models import Asset, ScanEvent, AssetAssignment # Import models used for deletion
 
 def initialize():
     print("--- Running Database Initialization ---")
-    inspector = inspect(db.engine) # Get an inspector object
-
-    # Explicitly delete data in reverse order of dependencies IF tables exist
-    # This helps avoid foreign key constraint errors during drop_all
-    try:
-        if inspector.has_table(ScanEvent.__tablename__):
-            print(f"Attempting to delete data from {ScanEvent.__tablename__}...")
-            num_deleted = db.session.query(ScanEvent).delete()
-            db.session.commit()
-            print(f"Deleted {num_deleted} records from {ScanEvent.__tablename__}.")
-        else:
-            print(f"Table {ScanEvent.__tablename__} does not exist, skipping delete.")
-
-        if inspector.has_table(AssetAssignment.__tablename__): # Add for AssetAssignment
-            print(f"Attempting to delete data from {AssetAssignment.__tablename__}...")
-            num_deleted = db.session.query(AssetAssignment).delete()
-            db.session.commit()
-            print(f"Deleted {num_deleted} records from {AssetAssignment.__tablename__}.")
-        else:
-            print(f"Table {AssetAssignment.__tablename__} does not exist, skipping delete.")
-
-        if inspector.has_table(Asset.__tablename__):
-            print(f"Attempting to delete data from {Asset.__tablename__}...")
-            num_deleted = db.session.query(Asset).delete()
-            db.session.commit()
-            print(f"Deleted {num_deleted} records from {Asset.__tablename__}.")
-        else:
-            print(f"Table {Asset.__tablename__} does not exist, skipping delete.")
-
-        # Add similar blocks for other tables with potential dependencies if needed
-
-    except Exception as e:
-        db.session.rollback()
-        print(f"!!! Warning: Error during explicit data deletion: {e}. Proceeding with drop_all...")
 
     # Now try dropping all tables
     try:
-        print("Attempting db.drop_all()...")
-        # db.reflect() # Sometimes helps metadata refresh, uncomment if needed
+        print("Dropping all tables...")
         db.drop_all()
-        db.session.commit() # Commit after drop
-        print("db.drop_all() completed.")
-    except Exception as e:
-        db.session.rollback() # Rollback on error
-        print(f"!!!!!! ERROR during db.drop_all(): {e}")
-        # It's often better to stop if drop_all fails
-        # return
 
-    # Proceed with creation
-    try:
-        print("Attempting db.create_all()...")
+        print("Creating all tables...")
         db.create_all()
-        db.session.commit() # Commit after create
-        print("db.create_all() completed.")
 
-        # Verify asset table is empty
-        asset_count = db.session.query(Asset).count()
-        print(f"--- Asset count immediately after db.create_all(): {asset_count} ---")
-        if asset_count != 0:
-             print("!!!!!! CRITICAL WARNING: Asset table is NOT empty after create_all! Something is wrong with drop/create.")
-
+        print("Database rest complete.")
+        
     except Exception as e:
-        db.session.rollback() # Rollback on error
-        print(f"!!!!!! ERROR during db.create_all(): {e}")
-        return # Stop if create fails
+        db.session.rollback()
+        print(f"!!! Warning: Error during reset: {e}. Proceeding with drop_all...")
+        return  # stop if create fails    
 
     # Add default data (user, rooms, etc.)
     try:
-        print("Adding default user...")
-        create_user('bob@gmail.com','bob marley', 'bobpass') # Ensure this doesn't fail
-        print("Default user added.")
+        print("Adding default users...")
+        # Ensure this doesn't fail
+        user1 = create_user('admin@gmail.com', 'Admin User', 'adminpass', 'Administrator')
+        user2 = create_user('manager@gmail.com', 'Manager User', 'managerpass', 'Manager')
+        user3 = create_user('auditor@gmail.com', 'Auditor User', 'auditorpass', 'Auditor')
+        print("Default users added.")
 
-        # ... (rest of your default data creation: buildings, floors, rooms, assignees) ...
+        print("Adding default employees...")
+        # Assuming assignee IDs are auto-incrementing integers
+        create_employee ("John", "Doe", "john.doe@mail.com")
+        create_employee("Jane", "Smith", "jane.smith@mail.com")        
+
+        # ... (rest of your default data creation: rooms) ...
         # Make sure these use IDs that don't conflict if hardcoded (e.g., use strings '1', '2' if IDs are strings)
         print("Adding default buildings...")
-        create_building("1", "Main Building") # Use strings if IDs are strings
-        create_building("2", "Annex Building")
+        building1 = create_building("Building A")
+        building2 = create_building("Building B")
         print("Default buildings added.")
 
         print("Adding default floors...")
-        create_floor("1", "1", "1st Floor")
-        create_floor("2", "2", "2nd Floor")
+        floor1 = create_floor(building1.building_id, "Floor 1")
+        floor2 = create_floor(building1.building_id, "Floor 2")
+        floor3 = create_floor(building2.building_id, "Floor 1")
+        floor4 = create_floor(building2.building_id, "Floor 2")
         print("Default floors added.")
 
-
         print("Adding default rooms...")
-        create_room("1", "1", "Asset Room: 101")
-        create_room("2", "2", "Asset Room: 201")
+        room1 = create_room(floor1.floor_id, "Asset Room: 101")
+        room2 = create_room(floor2.floor_id, "Asset Room: 201")
+        room3 = create_room(floor3.floor_id, "Asset Room: 301")
+        room4 = create_room(floor4.floor_id, "Asset Room: 401")
         print("Default rooms added.")
 
-        print("Adding default assignees...")
-        # Assuming assignee IDs are auto-incrementing integers
-        assignee1 = create_assignee("John", "Doe", "john.doe@mail.com", "1")
-        assignee2 = create_assignee("Jane", "Smith", "jane.smith@mail.com", "2")
-        print(f"Default assignees added (IDs: {assignee1.id if assignee1 else 'ERR'}, {assignee2.id if assignee2 else 'ERR'}).")
+        print("Ensuring default values...")
+        ensure_defaults()
         
-        print("Adding additional assignees for sample data...")
-        assignees_created_count = 0
-        for i in range(3, 21):
-            # Check if an assignee with this ID somehow already exists (unlikely after drop/create)
-            if not Assignee.query.get(i):
-                temp_assignee = create_assignee(
-                    fname=f"SampleFirst{i}",
-                    lname=f"SampleLast{i}",
-                    email=f"sample{i}@example.com",
-                    room_id=str((i % 2) + 1) # Assign to room 1 or 2 alternately
-                )
-                if temp_assignee:
-                    assignees_created_count += 1
-                else:
-                    print(f"Warning: Could not create sample assignee {i}")
-            else:
-                print(f"Info: Assignee with ID {i} already exists, skipping creation.")
-        print(f"Added {assignees_created_count} additional sample assignees.")
+        print("Adding default asset statuses...")
+        if not get_asset_status_by_name("Good"):
+            create_asset_status("Good")
+        if not get_asset_status_by_name("Missing"):
+            create_asset_status("Missing")
+        if not get_asset_status_by_name("Misplaced"):
+            create_asset_status("Misplaced")
+        if not get_asset_status_by_name("Lost"):
+            create_asset_status("Lost")
+        if not get_asset_status_by_name("Available"):
+            create_asset_status("Available")
+        print("Default asset statuses added.")
 
-        print("Ensuring default building/floor/room exist...")
-        ensure_defaults() # Call ensure_defaults here
-        print("ensure_defaults() completed.")
+        print("Adding sample assets...")
+        a1 = add_asset("Dell Latitude 5420", "Dell", "Latitude 5420", "SN-DELL-123", 1200.00, "Standard office laptop", "Good")
+        a2 = add_asset("Logitech MX Master 3", "Logitech", "MX Master 3", "SN-LOGI-456", 99.00, "Ergonomic mouse", "Good")
+        a3 = add_asset("HP LaserJet Pro", "HP", "LaserJet Pro M404n", "SN-HP-789", 350.00, "Department printer", "Good")
+        a4 = add_asset("Samsung 27\" Monitor", "Samsung", "S27R350", "SN-SAM-321", 200.00, "Desk monitor", "Good")
+        print("Sample assets added.")
+
+        # Get room IDs 
+        room1 = Room.query.first()
+        room2 = Room.query.offset(1).first()
+
+        print("Adding default audits...")
+        
+        audit1 = create_audit(user1.user_id) # Should be in_progress by default
+        end_audit()
+        
+        # Manually create some completed audits for history
+        audit2 = create_audit(user2.user_id)
+        end_audit()
+        
+        audit3 = create_audit(user2.user_id)
+         
+        db.session.commit()
+        print("Default audits added.")
+
+        print("Adding check events for sample data...")
+        if audit2 and a1 and room1:
+            create_check_event(audit2.audit_id, a1.asset_id, user1.user_id, room1.room_id, "Good", "found")
+        if audit2 and a2 and room1:
+            create_check_event(audit2.audit_id, a2.asset_id, user1.user_id, room1.room_id, "Needs Repair", "found")
+        if audit3 and a3 and room2:
+            create_check_event(audit3.audit_id, a3.asset_id, user3.user_id, room2.room_id, "Good", "found")
+        
+        print("Adding additional employees for sample data...")
+        employees_created_count = 0
+        
+        for i in range(3, 11):
+            temp_employee = create_employee(
+                first_name=f"SampleFirst{i}",
+                last_name=f"SampleLast{i}",
+                email=f"sample{i}@example.com",
+            )
+            if temp_employee:
+                employees_created_count += 1
+        print(f"Added {employees_created_count} additional sample employees.")
+
+        print("Adding sample asset assignments...")
+        if a1 and user1:
+            create_asset_assignment(a1.asset_id, user1.user_id, room1.room_id, "Good")
+        if a2 and user2:
+            create_asset_assignment(a2.asset_id, user2.user_id, room1.room_id, "Good")
+        if a3 and user3:
+            create_asset_assignment(a3.asset_id, user3.user_id, room2.room_id, "Good")
+        print("Asset assignments added.")
+
+        print("Adding sample asset authorizations...")
+        # Pending Proposals
+        propose_asset("iPad Pro 12.9", user3.user_id, "Apple", "A2378", "SN-APPLE-999", 1099.00, "For design team")
+        propose_asset("Sony WH-1000XM4", user3.user_id, "Sony", "XM4", "SN-SONY-777", 349.00, "Noise cancelling headphones")
+        
+        # Approved Proposal
+        p_approved = propose_asset("MacBook Pro 14", user3.user_id, "Apple", "M1 Pro", "SN-APPLE-111", 1999.00, "New development machine")
+        if p_approved:
+            approve_asset(p_approved.authorization_id, user2.user_id)
+            
+        # Rejected Proposal
+        p_rejected = propose_asset("Gaming Chair", user3.user_id, "SecretLab", "Titan", "SN-CHAIR-001", 499.00, "Ergonomic chair")
+        if p_rejected:
+            reject_asset(p_rejected.authorization_id, user2.user_id)
+        print("Sample asset authorizations added.")
 
         print("--- Database Initialization Finished Successfully ---")
 
@@ -149,36 +172,19 @@ def ensure_defaults():
     """
     inspector = inspect(db.engine)
     
-    if not (inspector.has_table('building') and 
-        inspector.has_table('floor') and 
-        inspector.has_table('room') and 
-        inspector.has_table('user')):
+    if not (inspector.has_table('room') and inspector.has_table('user')):
         # Tables don't exist yet, so don't try to add defaults
         return
     
-    # Create default building if it doesn't exist
-    default_building_id = "DEFAULT"
-    default_building = get_building(default_building_id)
-    if not default_building:
-        default_building = create_building(default_building_id, "Default Building")
-        print(f"Created default building: {default_building_id}")
-    
-    # Create default floor if it doesn't exist
-    default_floor_id = "DEFAULT"
-    default_floor = get_floor(default_floor_id)
-    if not default_floor:
-        default_floor = create_floor(default_floor_id, default_building_id, "Default Floor")
-        print(f"Created default floor: {default_floor_id}")
-    
     # Create unknown room if it doesn't exist
-    unknown_room_id = "UNKNOWN"
-    unknown_room = get_room(unknown_room_id)
-    if not unknown_room:
-        unknown_room = create_room(unknown_room_id, default_floor_id, "Unknown Room")
-        print(f"Created unknown room: {unknown_room_id}")
+    # unknown_room_id = "UNKNOWN"
+    # unknown_room = get_room(unknown_room_id)
+
+    # if not unknown_room:
+    #     unknown_room = create_room(unknown_room_id, "Unknown Room")
+    #     print(f"Created unknown room: {unknown_room_id}")
     
-    return {
-        "building": default_building,
-        "floor": default_floor, 
-        "room": unknown_room
-    }
+    # return {
+    #     "room": unknown_room
+    # }
+    return {}

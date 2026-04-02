@@ -9,6 +9,7 @@ from .inventory import inventory_views
 from .discrepancy import discrepancy_views
 from .settings import settings_views
 
+from .assetauthorization import asset_auth_views
 
-views = [user_views, index_views, auth_views, inventory_views, audit_views, discrepancy_views, settings_views] 
+views = [user_views, index_views, auth_views, inventory_views, audit_views, discrepancy_views, settings_views, asset_auth_views] 
 # blueprints must be added to this list
