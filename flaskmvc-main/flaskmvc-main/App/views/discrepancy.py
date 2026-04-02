@@ -150,15 +150,15 @@ def mark_asset_lost_route():
 
 #     return jsonify(discrepancies)
 
-# @discrepancy_views.route('/api/rooms/all', methods=['GET'])
-# @jwt_required()
-# def get_all_rooms_json():
-#     """API endpoint to get all rooms for relocation"""
-#     rooms = get_all_rooms()
-#     if not rooms:
-#         return jsonify([])
-#     rooms_json = [room.get_json() for room in rooms]
-#     return jsonify(rooms_json)
+@discrepancy_views.route('/api/rooms/all', methods=['GET'])
+@jwt_required()
+def get_all_rooms_json():
+    """API endpoint to get all rooms for relocation"""
+    rooms = get_all_rooms()
+    if not rooms:
+        return jsonify([])
+    rooms_json = [room.get_json() for room in rooms]
+    return jsonify(rooms_json)
 
 # @discrepancy_views.route('/api/discrepancies/missing', methods=['GET'])
 # @jwt_required()

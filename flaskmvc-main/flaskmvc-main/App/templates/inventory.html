@@ -20,11 +20,19 @@
                 </button>
             </div>
             
+            {% if current_user.role == 'Administrator' or current_user.role == 'Manager' %}
             <div class="action-container">
                 <button type="button" class="btn add-asset-btn" data-bs-toggle="modal" data-bs-target="#addAssetModal">
                     <i class="bi bi-plus-lg"></i> Add Asset
                 </button>
             </div>
+            {% elif current_user.role == 'Auditor' %}
+            <div class="action-container">
+                <button type="button" class="btn add-asset-btn" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                    <i class="bi bi-plus-lg"></i> Propose Asset
+                </button>
+            </div>
+            {% endif %}
             
             <!-- Status Filters -->
             <div class="filter-section">
@@ -104,7 +112,8 @@
                         <th onclick="sortTable(3)">Location <i class="bi bi-sort-down"></i></th>
                         <th onclick="sortTable(4)">Condition <i class="bi bi-sort-down"></i></th>
                         <th onclick="sortTable(5)">Assignee <i class="bi bi-sort-down"></i></th>
-                        <th onclick="sortTable(6)">Last Updated <i class="bi bi-sort-down"></i></th>
+                        <th onclick="sortTable(6)">Cost <i class="bi bi-sort-down"></i></th>
+                        <th onclick="sortTable(7)">Last Updated <i class="bi bi-sort-down"></i></th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -127,11 +136,6 @@
                 <label for="addAssetDescription" class="form-label">Description <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="addAssetDescription" name="description" required>
               </div>
-              <div class="mb-3">
-                <label for="addAssetId" class="form-label">Asset Tag (ID) <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="addAssetId" name="id" required>
-                <div class="form-text">Must be unique.</div>
-              </div>
               <div class="row">
                 <div class="col-md-6 mb-3">
                   <label for="addAssetBrand" class="form-label">Brand</label>
@@ -147,16 +151,31 @@
                 <input type="text" class="form-control" id="addAssetSerialNumber" name="serial_number">
               </div>
               <div class="row">
+                {% if current_user.role == 'Administrator' or current_user.role == 'Manager' %}
                 <div class="col-md-6 mb-3">
-                    <label for="addAssetRoomSelect" class="form-label">Assigned Room <span class="text-danger">*</span></label>
-                    <select class="form-select" id="addAssetRoomSelect" name="room_id" required>
-                        <option value="" selected disabled>Loading rooms...</option>
-                    </select>
+                    <label for="addAssetRoomSearch" class="form-label">Assigned Room <span class="text-danger">*</span></label>
+                    <div class="searchable-dropdown" id="roomDropdown">
+                        <input type="text" class="form-control" id="addAssetRoomSearch" placeholder="Search rooms..." autocomplete="off">
+                        <input type="hidden" id="addAssetRoomSelect" name="room_id">
+                        <div class="searchable-dropdown-list" id="roomDropdownList"></div>
+                    </div>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="addAssetAssigneeInput" class="form-label">Assignee Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="addAssetAssigneeInput" name="assignee_name" required placeholder="Enter full name (e.g., John Doe)">
-                     <div class="form-text">If assignee doesn't exist, they will be created.</div>
+                    <label for="addAssetAssigneeSearch" class="form-label">Assignee Name <span class="text-danger">*</span></label>
+                    <div class="searchable-dropdown" id="assigneeDropdown">
+                        <input type="text" class="form-control" id="addAssetAssigneeSearch" placeholder="Search employees..." autocomplete="off">
+                        <input type="hidden" id="addAssetAssigneeInput" name="assignee_name">
+                        <div class="searchable-dropdown-list" id="assigneeDropdownList"></div>
+                    </div>
+                    <div class="form-text">If assignee doesn't exist, they will be created.</div>
+                </div>
+              </div>
+              {% endif %}
+              <div class="row">
+
+                <div class="col-md-6 mb-3">
+                  <label for="addAssetCost" class="form-label">Cost ($)</label>
+                  <input type="number" class="form-control" id="addAssetCost" name="cost" step="0.01" min="0" required>
                 </div>
               </div>
               <div class="mb-3">
@@ -168,7 +187,11 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            {% if current_user.role == 'Administrator' or current_user.role == 'Manager' %}
             <button type="button" class="btn btn-primary" id="saveNewAssetBtn">Save Asset</button>
+            {% elif current_user.role == 'Auditor' %}
+            <button type="button" class="btn btn-primary" id="proposeNewAssetBtn">Propose Asset</button>
+            {% endif %}
           </div>
         </div>
       </div>
