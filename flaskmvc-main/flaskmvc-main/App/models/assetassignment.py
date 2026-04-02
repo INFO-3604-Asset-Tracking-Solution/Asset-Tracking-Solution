@@ -25,15 +25,15 @@ class AssetAssignment(db.Model):
     employee = db.relationship('Employee', backref='assignments', lazy=True)
     # room = db.relationship('Room', backref='assignments', lazy=True)
 
-    def __init__(self, asset_id, employee_id, room_id, condition, assignment_date=None, return_date=None):
+    def __init__(self, asset_id, employee_id,
+     floor_id, assignment_date=None, return_date=None):
         self.asset_id = asset_id
         self.employee_id = employee_id
         self.room_id = room_id
         self.condition = condition
         self.assignment_date = assignment_date if assignment_date else datetime.utcnow()
         self.return_date = return_date
-        self.status = 'returned' if return_date else 'in_use'
-
+  
     def get_json(self):
         return {
             'assignment_id': self.assignment_id,
