@@ -53,7 +53,7 @@ def get_all_users_json():
     return [user.get_json() for user in users]
 
 
-def update_user(id, email, username, new_password=None, role=None):
+def update_user(user_id, email, username, new_password=None, role=None):
     try:
         # Convert user_id to integer if it's a string
         if isinstance(user_id, str) and user_id.isdigit():
@@ -98,7 +98,7 @@ def update_user(id, email, username, new_password=None, role=None):
         return None
 
 
-def delete_user(id):
+def delete_user(user_id):
     try:
         user = get_user(user_id)
         
