@@ -6,47 +6,93 @@ from flask import Blueprint, Response, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 
 from App.database import db
-from App.models import MissingDevice, CheckEvent, Notification, Audit
-from App.controllers.asset import get_asset
-from App.controllers.room import *
-from App.controllers.missingdevices import *
-from App.controllers.relocation import *
-from App.controllers.checkevent import *
-from App.controllers.assetassignment import *
-from App.controllers.audit import get_active_audit
-from App.controllers.notification import create_notification
-from App.controllers.notification import get_notifications_by_recipient_id
-
+from App.controllers.asset import (
+    get_asset,
+    get_assets_by_status,
+    get_discrepant_assets,
+    mark_asset_lost,
+    mark_asset_found,
+    update_asset_location,
+    bulk_mark_assets_found, # Import new function
+    bulk_relocate_assets    # Import new function
+)
+from App.controllers.room import get_room, get_all_rooms
+from datetime import datetime
+from App.controllers.scanevent import add_scan_event
+from App.controllers.permissions import role_required  # Added for RBAC
 
 discrepancy_views = Blueprint('discrepancy_views', __name__, template_folder='../templates')
 
+# --- Existing routes remain the same ---
+@discrepancy_views.route('/discrepancy-report', methods=['GET'])
+@jwt_required()
+@role_required('Auditor')  # Only auditors can view discrepancy page
+def discrepancy_report_page():
+    # Default without loading data in template (will be loaded via API)
+    return render_template('discrepancy.html')
 
 @discrepancy_views.route('/mark-room-missing', methods=['POST'])
 @jwt_required()
-def mark_room_missing():
-    data = request.json or {}
-    room_id = data.get('room_id')
-    audit_id = data.get('audit_id')
+@role_required('Auditor')  # Only auditors can fetch discrepancies
+def get_discrepancies():
+    """API endpoint to get all discrepancy assets"""
+    discrepancies = get_discrepant_assets()
 
-    if not room_id or not audit_id:
-        return jsonify({
-            'success': False,
-            'message': 'Room ID and Audit ID are required'
-        }), 400
+    # Enrich with room information
+    for asset in discrepancies:
+        # Get expected room name (if available)
+        if asset.get('room_id'):
+            room = get_room(asset['room_id'])
+            if room:
+                asset['room_name'] = room.room_name
+            else:
+                asset['room_name'] = f"Room {asset['room_id']}"
+        else:
+            asset['room_name'] = "Unknown"
 
-    mark_assets_missing_for_room(audit_id, room_id)
-    return jsonify({
-        'success': True,
-        'message': 'Assets marked as missing for room'
-    }), 200
+        # Get last located room name (if available)
+        if asset.get('last_located') and asset['last_located'] != asset['room_id']:
+            last_room = get_room(asset['last_located'])
+            if last_room:
+                asset['last_located_name'] = last_room.room_name
+            else:
+                asset['last_located_name'] = f"Room {asset['last_located']}"
 
+    return jsonify(discrepancies)
+
+@discrepancy_views.route('/api/rooms/all', methods=['GET'])
+@jwt_required()
+@role_required(['Manager', 'Administrator'])  # Only managers/admins can fetch rooms for relocation
+def get_all_rooms_json():
+    """API endpoint to get all rooms for relocation"""
+    rooms = get_all_rooms()
+    if not rooms:
+        return jsonify([])
+    rooms_json = [room.get_json() for room in rooms]
+    return jsonify(rooms_json)
+
+@discrepancy_views.route('/api/discrepancies/missing', methods=['GET'])
+@jwt_required()
+@role_required('Auditor')  # Only auditors can fetch missing assets
+def get_missing():
+    """API endpoint to get missing assets"""
+    missing = get_assets_by_status("Missing")
+    return jsonify(missing)
+
+@discrepancy_views.route('/api/discrepancies/misplaced', methods=['GET'])
+@jwt_required()
+@role_required('Auditor')  # Only auditors can fetch misplaced assets
+def get_misplaced():
+    """API endpoint to get misplaced assets"""
+    misplaced = get_assets_by_status("Misplaced")
+    return jsonify(misplaced)
 
 @discrepancy_views.route('/mark-asset-found', methods=['POST'])
 @jwt_required()
-def mark_asset_found_route():
-    data = request.json or {}
-    missing_id = data.get('missing_id')
-    relocation_id = data.get('relocation_id')
+@role_required(['Manager', 'Administrator'])  # Managers/admins can mark assets as lost
+def mark_asset_as_lost(asset_id):
+    """API endpoint to mark an asset as lost"""
+    asset = mark_asset_lost(asset_id, current_user.id)
 
     if not missing_id or not relocation_id:
         return jsonify({
@@ -69,16 +115,11 @@ def mark_asset_found_route():
 
 @discrepancy_views.route('/relocate-asset', methods=['POST'])
 @jwt_required()
-def relocate_asset_route():
-    data = request.json or {}
-    check_id = data.get('check_id')
-    found_room_id = data.get('found_room_id')
-
-    if not check_id or not found_room_id:
-        return jsonify({
-            'success': False,
-            'message': 'Check ID and Found Room ID are required'
-        }), 400
+@role_required(['Manager', 'Administrator'])  # Managers/admins can mark assets as found
+def mark_asset_as_found(asset_id):
+    """API endpoint to mark an asset as found"""
+    # Return to room is always true for this endpoint
+    asset = mark_asset_found(asset_id, current_user.id, return_to_room=True)
 
     result = create_relocation(check_id, found_room_id)
     if result:
@@ -96,10 +137,10 @@ def relocate_asset_route():
 
 @discrepancy_views.route('/change-asset-condition', methods=['POST'])
 @jwt_required()
-def change_asset_condition_route():
-    data = request.json or {}
-    check_id = data.get('check_id')
-    condition = data.get('condition')
+@role_required(['Manager', 'Administrator'])  # Managers/admins can relocate assets
+def relocate_asset(asset_id):
+    """API endpoint to mark an asset as found and relocate/reassign it (single item)"""
+    data = request.json
 
     if not check_id or not condition:
         return jsonify({
@@ -172,18 +213,26 @@ def reconcile_discrepancy_route():
         'message': 'Failed to reconcile discrepancy'
     }), 500
 
-
-@discrepancy_views.route('/mark-asset-lost', methods=['POST'])
+@discrepancy_views.route('/api/assets/bulk-mark-found', methods=['POST'])
 @jwt_required()
-def mark_asset_lost_route():
-    data = request.json or {}
-    missing_id = data.get('missing_id')
+@role_required(['Manager', 'Administrator'])  # Managers/admins can bulk mark assets found
+def bulk_mark_found_endpoint():
+    """API endpoint for bulk marking assets as found"""
+    data = request.json
+    if not data or 'assetIds' not in data or not isinstance(data['assetIds'], list):
+        return jsonify({'success': False, 'message': 'Invalid input. "assetIds" (list) required.'}), 400
 
-    if not missing_id:
-        return jsonify({
-            'success': False,
-            'message': 'Missing ID is required'
-        }), 400
+    asset_ids = data['assetIds']
+    notes = data.get('notes', '')
+    # Get the flag for skipping failed scan events
+    skip_failed_scan_events = data.get('skipFailedScanEvents', False)
+    
+    processed_count, error_count, errors = bulk_mark_assets_found(
+        asset_ids, 
+        current_user.id, 
+        notes, 
+        skip_failed_scan_events
+    )
 
     result = mark_asset_lost(missing_id)
     if result:
@@ -269,51 +318,24 @@ def get_discrepancies():
 
 @discrepancy_views.route('/api/rooms/all', methods=['GET'])
 @jwt_required()
-def get_all_rooms_api():
-    rooms = get_all_rooms()
-    if not rooms:
-        return jsonify([]), 200
-    return jsonify([room.get_json() for room in rooms]), 200
+@role_required(['Manager', 'Administrator'])  # Managers/admins can bulk relocate assets
+def bulk_relocate_endpoint():
+    """API endpoint for bulk relocating assets"""
+    data = request.json
+    if not data or \
+       'assetIds' not in data or not isinstance(data['assetIds'], list) or \
+       'roomId' not in data:
+        return jsonify({'success': False, 'message': 'Invalid input. "assetIds" (list) and "roomId" required.'}), 400
 
+    asset_ids = data['assetIds']
+    new_room_id = data['roomId']
+    notes = data.get('notes', '') # Optional notes for the bulk action
 
-@discrepancy_views.route('/notify-discrepancy', methods=['POST'])
-@jwt_required()
-def notify_discrepancy():
-    data = request.json or {}
+    processed_count, error_count, errors = bulk_relocate_assets(asset_ids, new_room_id, current_user.id, notes)
 
-    missing_asset = data.get('missing_asset', '-')
-    relocated_asset = data.get('relocated_asset', '-')
-    reconciliation = data.get('reconciliation', 'Pending')
-
-    active_audit = get_active_audit()
-    audit_for_notification = active_audit
-
-    if not audit_for_notification:
-        audit_for_notification = Audit.query.order_by(Audit.start_date.desc()).first()
-
-    if not audit_for_notification:
-        return jsonify({
-            'success': False,
-            'message': 'No audit found for notification'
-        }), 400
-
-    message = (
-        f"Discrepancy notification | "
-        f"Missing Asset: {missing_asset} | "
-        f"Relocated Asset: {relocated_asset} | "
-        f"Reconciliation: {reconciliation}"
-    )
-
-    try:
-        notification = create_notification(
-        audit_id=audit_for_notification.audit_id,
-        recipient_id=current_user.user_id,
-        message=message
-    )
-        
-        db.session.add(notification)
-        db.session.commit()
-
+    if error_count == 0:
+        room = get_room(new_room_id)
+        room_name = room.room_name if room else f"Room {new_room_id}"
         return jsonify({
             'success': True,
             'message': 'Notification created successfully'
@@ -328,6 +350,7 @@ def notify_discrepancy():
 
 @discrepancy_views.route('/api/discrepancies/download', methods=['GET'])
 @jwt_required()
+@role_required(['Manager', 'Administrator', 'Auditor'])  # All roles can download discrepancy CSV
 def download_discrepancies():
     try:
         rows = build_discrepancy_rows()

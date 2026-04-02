@@ -1,67 +1,120 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request 
 from flask_jwt_extended import current_user, jwt_required
-from App.controllers.room import *
-from App.controllers.audit import *
-from App.controllers.checkevent import *
-from App.controllers.user import *
-from App.controllers.audit import *
-from App.controllers.building import *
-from App.controllers.assetassignment import *
-from App.controllers.floor import *
-
-from flask import flash, redirect, url_for
-# from App.controllers.asset import (
-#     get_all_assets, 
-#     get_all_assets_by_room_json, 
-#     get_asset, 
-#     update_asset_location,
-#     mark_assets_missing
-# )
+from App.controllers.building import get_all_building_json
+from App.controllers.floor import get_floors_by_building
+from App.controllers.room import get_rooms_by_floor, get_room
+from App.controllers.asset import (
+    get_all_assets, 
+    get_all_assets_by_room_json, 
+    get_asset, 
+    update_asset_location,
+    mark_assets_missing
+)
+from App.controllers.assignee import get_assignee_by_id
+from App.decorators import role_required  # Added for role-based access
 
 audit_views = Blueprint('audit_views', __name__, template_folder='../templates')
 
 @audit_views.route('/audit-list')
 @jwt_required()
-def audit_list():
-    audits = get_all_audits_json() 
-    active_audit = get_active_audit()
-    return render_template('audit_list.html', audits=audits, active_audit=active_audit)
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])  # Role access
+def audit_page():
+    """Render the audit page with building data"""
+    buildings = get_all_building_json()
+    return render_template('audit.html', buildings=buildings)
 
 @audit_views.route('/audit-list/<audit_id>', methods=['GET'])
 @jwt_required()
-def audit_detail(audit_id):
-    audit = get_audit_by_id(audit_id) # Need to get the info from other models 
-    check_events = get_all_check_events_by_audit(audit_id)
-    return render_template('audit_detail.html', audit=audit, check_events=check_events)
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
+def get_floors(building_id):
+    """Get all floors for a given building"""
+    floors = get_floors_by_building(building_id)
+    
+    # Handle case with no floors
+    if not floors:
+        return jsonify([])
+        
+    floors_json = [floor.get_json() for floor in floors]
+    return jsonify(floors_json)
 
 @audit_views.route('/start-audit', methods=['GET'])
 @jwt_required()
-def start_audit():
-    if get_active_audit() is not None:
-        return redirect(url_for('audit_views.audit_list'))
-    audit = create_audit(current_user.user_id)
-    audits = get_all_audits_json()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
+def get_rooms(floor_id):
+    """Get all rooms for a given floor"""
+    rooms = get_rooms_by_floor(floor_id)
     
     return render_template('audit_list.html', audits=audits), 200
 
 @audit_views.route('/end-audit', methods=['GET'])
 @jwt_required()
-def end_audit_view():
-    audit = end_audit()
-    if not audit:
-        flash('No active audit to end', 'error')
-    else:
-        flash('Audit completed successfully!', 'success')
-    return redirect(url_for('audit_views.audit_list'))
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
+def get_room_assets(room_id):
+    """Get all assets for a given room"""
+    try:
+        # Get assets for the room
+        room_assets = get_all_assets_by_room_json(room_id)
+        
+        # Enhance the assets with room name and assignee information
+        for asset in room_assets:
+            # Add room names where possible
+            if 'room_id' in asset:
+                room = get_room(asset['room_id'])
+                if room:
+                    asset['room_name'] = room.room_name
+            
+            if 'last_located' in asset:
+                last_room = get_room(asset['last_located'])
+                if last_room:
+                    asset['last_located_name'] = last_room.room_name
+            
+            # Add assignee name information - THIS IS THE FIX
+            if asset.get('assignee_id'):
+                assignee = get_assignee_by_id(asset['assignee_id'])
+                if assignee:
+                    asset['assignee_name'] = str(assignee)  # Use __str__
+                else:
+                    asset['assignee_name'] = f"Assignee ID: {asset['assignee_id']}"
+            else:
+                asset['assignee_name'] = "Unassigned"
+        
+        return jsonify(room_assets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @audit_views.route('/compare-audits/<audit_id>/<audit_id2>', methods=['POST'])
 @jwt_required()
-def compare_audits(audit_id, audit_id2):
-    if not get_audit_by_id(audit_id) or not get_audit_by_id(audit_id2):
-        return jsonify({'message': 'Audit not found'}), 404
-    audit1 = get_audit_by_id(audit_id) # Need to get the info from other models 
-    audit2 = get_audit_by_id(audit_id2) # Need to get the info from other models 
-    return render_template('compare_audits.html', audits=[audit1, audit2]), 200
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
+def get_asset_by_id(asset_id):
+    """Get a single asset by ID"""
+    asset = get_asset(asset_id)
+    
+    if not asset:
+        return jsonify({'message': 'Asset not found'}), 404
+    
+    # Get asset data
+    asset_json = asset.get_json()
+    
+    # Add room names
+    if asset.room_id:
+        room = get_room(asset.room_id)
+        if room:
+            asset_json['room_name'] = room.room_name
+    
+    if asset.last_located:
+        last_room = get_room(asset.last_located)
+        if last_room:
+            asset_json['last_located_name'] = last_room.room_name
+    
+    # Add assignee name - THIS IS THE FIX
+    if asset.assignee_id:
+        assignee = get_assignee_by_id(asset.assignee_id)
+        if assignee:
+            asset_json['assignee_name'] = str(assignee)  # Use __str__
+        else:
+            asset_json['assignee_name'] = f"Assignee ID: {asset.assignee_id}"
+    else:
+        asset_json['assignee_name'] = "Unassigned"
     
 @audit_views.route('/audit')
 @jwt_required()
@@ -73,15 +126,9 @@ def audit_page():
 
 @audit_views.route('/get-audit-status')
 @jwt_required()
-def get_audit_status_view():
-    try:
-        return jsonify({'status': get_audit_status()}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@audit_views.route('/api/check-event', methods=['POST'])
-@jwt_required()
-def create_check_event_api():
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
+def mark_missing():
+    """Mark multiple assets as missing"""
     data = request.json
     
     if not data or 'asset_id' not in data or 'room_id' not in data:
@@ -135,8 +182,12 @@ def create_check_event_api():
 #     """Get a single asset by ID"""
 #     asset = get_asset(asset_id)
     
-#     if not asset:
-#         return jsonify({'message': 'Asset not found'}), 404
+@audit_views.route('/api/update-asset-location', methods=['POST'])
+@jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor/Scanner'])
+def update_location():
+    """Update an asset's location"""
+    data = request.json
     
 #     # Get asset data
 #     asset_json = asset.get_json()
