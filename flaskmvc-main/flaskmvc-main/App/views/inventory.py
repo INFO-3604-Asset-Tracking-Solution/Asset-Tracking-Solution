@@ -3,7 +3,6 @@ from flask_jwt_extended import jwt_required, current_user
 from App.controllers.asset import get_all_assets_json, get_asset, update_asset_details, add_asset
 from App.controllers.assignee import get_all_assignees_json, get_assignee_by_id, get_or_create_assignee_by_name  # Import new function
 from App.controllers.room import get_room
-from App.controllers.scanevent import add_scan_event, get_scans_by_asset
 from datetime import datetime
 from App.controllers.permissions import role_required
 

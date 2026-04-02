@@ -1,0 +1,221 @@
+{% extends "layout.html" %}
+{% set active_page = 'audit_history' %}
+{% block title %}Audit List - iGOVTT{% endblock %}
+
+{% block page_css %}
+<style>
+    .audit-container {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: calc(100vh - 60px);
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-title {
+        font-weight: 700;
+        color: #2d3436;
+        font-size: 1.75rem;
+        position: relative;
+    }
+
+    .page-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 50px;
+        height: 4px;
+        background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+        border-radius: 2px;
+    }
+
+    .audit-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        background-color: rgba(248, 249, 250, 0.5);
+        border-bottom: 2px solid #eee;
+        color: #b2bec3;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .table tbody td {
+        padding: 1.25rem 1.5rem;
+        vertical-align: middle;
+        color: #2d3436;
+        font-weight: 500;
+        border-bottom: 1px solid #eee;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 210, 255, 0.02);
+    }
+
+    .audit-id {
+        font-family: 'Monaco', 'Consolas', monospace;
+        color: #3498db;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .audit-status {
+        display: inline-block;
+        padding: 0.35rem 0.85rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-completed {
+        background-color: #d1f7e6;
+        color: #10ac84;
+    }
+
+    .status-in_progress {
+        background-color: #fff4e5;
+        color: #f39c12;
+    }
+
+    .status-pending {
+        background-color: #e3f2fd;
+        color: #3498db;
+    }
+
+    .btn-view-audit {
+        background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+        color: white;
+        border: none;
+        padding: 0.4rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-view-audit:hover {
+        opacity: 0.9;
+        color: white;
+        box-shadow: 0 4px 12px rgba(58, 123, 213, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: #dfe6e9;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="audit-container">
+    <div class="page-header">
+        <h1 class="page-title">Audit History</h1>
+        <a href="/start-audit" class="btn btn-view-audit {% if active_audit %}disabled{% endif %}" {% if active_audit %}style="pointer-events: none; opacity: 0.65;"{% endif %}>
+            <i class="bi bi-plus-circle me-2"></i>New Audit
+        </a>
+    </div>
+
+    {% if audits %}
+    <div class="audit-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Audit ID</th>
+                        <th>Initiator</th>
+                        <th>Status</th>
+                        <th>Started On</th>
+                        <th>Ended On</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for audit in audits %}
+                    <tr>
+                        <td><span class="audit-id">{{ audit.audit_id }}</span></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-2 bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                    <i class="bi bi-person text-secondary"></i>
+                                </div>
+                                <span>{{ audit.initiator_username }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="audit-status status-{{ audit.status|lower }}">
+                                <i class="bi {% if audit.status == 'COMPLETED' %}bi-check-circle{% elif audit.status == 'IN_PROGRESS' %}bi-arrow-repeat{% else %}bi-clock{% endif %} me-1"></i>
+                                {{ audit.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <i class="bi bi-calendar3 me-2 text-muted"></i>
+                            {{ audit.start_date.strftime('%b %d, %Y') if audit.start_date else 'N/A' }}
+                        </td>
+                        <td>
+                            {% if audit.end_date %}
+                                <i class="bi bi-calendar-check me-2 text-muted"></i>
+                                {{ audit.end_date.strftime('%b %d, %Y') }}
+                            {% else %}
+                                <span class="text-primary fw-medium">Ongoing</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="/audit-list/{{ audit.audit_id }}" class="btn btn-view-audit">
+                                Details <i class="bi bi-chevron-right ms-1 small"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-clipboard-x empty-icon"></i>
+        <h3>No Audits Found</h3>
+        <p class="text-muted">There are no audit sessions recorded in the system yet.</p>
+        <a href="/audit" class="btn btn-view-audit mt-3">Start First Audit</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -23,6 +23,7 @@ def create_user(email, username, password, role="Auditor"):
         db.session.add(new_user)
         db.session.commit()
         return new_user
+   
     except Exception as e:
         db.session.rollback()
         print(f"Error creating user: {e}")
@@ -54,23 +55,27 @@ def get_all_users_json():
 
 def update_user(id, email, username, new_password=None, role=None):
     try:
-        # Convert id to integer if it's a string
-        if isinstance(id, str) and id.isdigit():
-            id = int(id)
+        # Convert user_id to integer if it's a string
+        if isinstance(user_id, str) and user_id.isdigit():
+            user_id = int(user_id)
             
-        # Try to get the user directly by id
-        user = User.query.get(id)
+        # Try to get the user directly by user_id
+        user = User.query.get(user_id)
         
-        # If that fails, try filter_by
-        if not user:
-            user = User.query.filter_by(id=id).first()
-            
         if not user:
             return None
             
         # Update user information
         user.email = email
         user.username = username
+
+        #Update user type
+        valid_types = ["Manager", "Administrator", "Auditor"]
+
+        if role:
+            if role not in valid_types:
+                return None
+            user.role = role
         
         # Update password if provided
         if new_password:
@@ -84,6 +89,7 @@ def update_user(id, email, username, new_password=None, role=None):
         # Commit changes
         db.session.add(user)
         db.session.commit()
+        
         return True
 
     except Exception as e:
@@ -94,12 +100,15 @@ def update_user(id, email, username, new_password=None, role=None):
 
 def delete_user(id):
     try:
-        user = get_user(id)
+        user = get_user(user_id)
+        
         if user:
             db.session.delete(user)
             db.session.commit()
             return True
+        
         return False
+    
     except Exception as e:
         db.session.rollback()
         print(f"Error deleting user: {e}")

@@ -1,12 +1,16 @@
 from App.database import db
 from sqlalchemy import Numeric
+from nanoid import generate
+
+def generate_short_id():
+    return generate(size=8)
 
 class Asset(db.Model):
 
     __tablename__ = "asset"
 
-    asset_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    description = db.Column(db.String(200), nullable=True)
+    asset_id = db.Column(db.String(50), primary_key=True, default=generate_short_id)
+    description = db.Column(db.String(200), nullable=True) 
     brand = db.Column(db.String(120), nullable=True)
     model = db.Column(db.String(120), nullable=True)
     serial_number = db.Column(db.String(50), nullable=True)
@@ -18,7 +22,7 @@ class Asset(db.Model):
     checkevents = db.relationship('CheckEvent', backref='asset', lazy=True)
     assignments = db.relationship('AssetAssignment', backref='asset', lazy=True)
 
-    def __init__(self, description, brand=None, model=None, serial_number=None, status_id=None, cost=None, notes=None):
+    def __init__(self, description, brand=None, model=None, serial_number=None, status_id=None, cost=None, notes=None, last_update=None):
         self.description = description
         self.brand = brand
         self.model = model
@@ -26,6 +30,7 @@ class Asset(db.Model):
         self.status_id = status_id
         self.cost = cost
         self.notes = notes
+        self.last_update = last_update
 
     def get_json(self):
         return {
