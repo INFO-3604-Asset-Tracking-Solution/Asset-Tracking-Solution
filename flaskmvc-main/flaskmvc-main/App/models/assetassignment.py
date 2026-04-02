@@ -26,7 +26,7 @@ class AssetAssignment(db.Model):
     # room = db.relationship('Room', backref='assignments', lazy=True)
 
     def __init__(self, asset_id, employee_id,
-     floor_id, assignment_date=None, return_date=None):
+     room_id, condition, assignment_date=None, return_date=None):
         self.asset_id = asset_id
         self.employee_id = employee_id
         self.room_id = room_id
