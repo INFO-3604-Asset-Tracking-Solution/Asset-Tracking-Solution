@@ -2,14 +2,19 @@ from App.database import db
 from sqlalchemy import Numeric
 from nanoid import generate
 
-def generate_short_id():
-    return generate(size=8)
+def generate_asset_id():
+    from sqlalchemy import text
+    from App.database import db
+    with db.engine.connect() as conn:
+        result = conn.execute(text("SELECT COUNT(*) FROM asset"))
+        count = result.scalar()
+    return f"A-{str(count + 1).zfill(6)}"
 
 class Asset(db.Model):
 
     __tablename__ = "asset"
 
-    asset_id = db.Column(db.String(50), primary_key=True, default=generate_short_id)
+    asset_id = db.Column(db.String(50), primary_key=True, default=generate_asset_id)
     description = db.Column(db.String(200), nullable=True) 
     brand = db.Column(db.String(120), nullable=True)
     model = db.Column(db.String(120), nullable=True)
@@ -39,7 +44,8 @@ class Asset(db.Model):
             "brand": self.brand,
             "model": self.model,
             "serial_number": self.serial_number,
-            "status_id": self.status_id,
+            "status_name": self.status.status_name if self.status else None,
+            "status_id":self.status_id,
             "cost": float(self.cost) if self.cost else None,
             "notes": self.notes,
             "last_update": self.last_update
