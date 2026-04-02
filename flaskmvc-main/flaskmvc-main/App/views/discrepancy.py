@@ -6,30 +6,13 @@ from flask import Blueprint, Response, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 
 from App.database import db
-from App.controllers.asset import (
-    get_asset,
-    get_assets_by_status,
-    get_discrepant_assets,
-    mark_asset_lost,
-    mark_asset_found,
-    update_asset_location,
-    bulk_mark_assets_found, # Import new function
-    bulk_relocate_assets    # Import new function
-)
-from App.controllers.room import get_room, get_all_rooms
-from datetime import datetime
-from App.controllers.scanevent import add_scan_event
-from App.controllers.permissions import role_required  # Added for RBAC
+from App.controllers.asset import *
+from App.controllers.room import *
+from App.controllers.permissions import *
 
 discrepancy_views = Blueprint('discrepancy_views', __name__, template_folder='../templates')
 
 # --- Existing routes remain the same ---
-@discrepancy_views.route('/discrepancy-report', methods=['GET'])
-@jwt_required()
-@role_required('Auditor')  # Only auditors can view discrepancy page
-def discrepancy_report_page():
-    # Default without loading data in template (will be loaded via API)
-    return render_template('discrepancy.html')
 
 @discrepancy_views.route('/mark-room-missing', methods=['POST'])
 @jwt_required()
@@ -60,16 +43,7 @@ def get_discrepancies():
 
     return jsonify(discrepancies)
 
-@discrepancy_views.route('/api/rooms/all', methods=['GET'])
-@jwt_required()
-@role_required(['Manager', 'Administrator'])  # Only managers/admins can fetch rooms for relocation
-def get_all_rooms_json():
-    """API endpoint to get all rooms for relocation"""
-    rooms = get_all_rooms()
-    if not rooms:
-        return jsonify([])
-    rooms_json = [room.get_json() for room in rooms]
-    return jsonify(rooms_json)
+
 
 @discrepancy_views.route('/api/discrepancies/missing', methods=['GET'])
 @jwt_required()
@@ -620,7 +594,7 @@ def build_discrepancy_rows():
 
 @discrepancy_views.route('/api/discrepancies', methods=['GET'])
 @jwt_required()
-def get_discrepancies():
+def get_discrepancies_api():
     try:
         rows = build_discrepancy_rows()
         return jsonify(rows), 200
@@ -647,14 +621,14 @@ def bulk_relocate_endpoint():
     notes = data.get('notes', '') # Optional notes for the bulk action
 
     processed_count, error_count, errors = bulk_relocate_assets(asset_ids, new_room_id, current_user.id, notes)
-
-    if error_count == 0:
-        room = get_room(new_room_id)
-        room_name = room.room_name if room else f"Room {new_room_id}"
-        return jsonify({
-            'success': True,
-            'message': 'Notification created successfully'
-        }), 200
+    try:
+        if error_count == 0:
+            room = get_room(new_room_id)
+            room_name = room.room_name if room else f"Room {new_room_id}"
+            return jsonify({
+                'success': True,
+                'message': 'Notification created successfully'
+            }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({

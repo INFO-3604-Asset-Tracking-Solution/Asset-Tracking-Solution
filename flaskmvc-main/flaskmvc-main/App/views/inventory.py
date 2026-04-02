@@ -1,8 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
-from App.controllers.asset import get_all_assets_json, get_asset, update_asset_details, add_asset
-from App.controllers.assignee import get_all_assignees_json, get_assignee_by_id, get_or_create_assignee_by_name  # Import new function
-
+from App.controllers.asset import *
 from App.controllers.room import get_room
 from App.controllers.employee import get_all_employees, get_or_create_employee_by_name
 from App.controllers.assetassignment import create_asset_assignment
@@ -14,13 +12,11 @@ inventory_views = Blueprint('inventory_views', __name__, template_folder='../tem
 
 @inventory_views.route('/inventory', methods=['GET'])
 @jwt_required()
-@role_required('Auditor')  # Only auditors can view inventory page
 def inventory_page():
     return render_template('inventory.html')
 
 @inventory_views.route('/api/assets', methods=['GET'])
 @jwt_required()
-@role_required('Auditor')  # Only auditors can fetch asset list
 def get_assets():
     assets = get_all_assets_json()
     for asset in assets:
@@ -289,62 +285,4 @@ def get_assignees():
     assignees = get_all_assignees_json()
     return jsonify(assignees)
 
-@inventory_views.route('/api/asset/add', methods=['POST'])
-@jwt_required()
-@role_required('Administrator')  # Only administrators can add new assets
-def add_asset_api():
-    data = request.json
-    if not data:
-        return jsonify({'success': False, 'message': 'No data provided'}), 400
-    asset_id = data.get('id')
-    description = data.get('description')
-    room_id = data.get('room_id')
-    assignee_name = data.get('assignee_name')
-    if not all([asset_id, description, room_id, assignee_name]):
-        missing = [field for field, value in {'Asset ID': asset_id, 'Description': description, 'Room': room_id, 'Assignee Name': assignee_name}.items() if not value]
-        return jsonify({'success': False, 'message': f'Missing required fields: {", ".join(missing)}'}), 400
-    assignee = get_or_create_assignee_by_name(assignee_name)
-    if not assignee:
-        return jsonify({'success': False, 'message': f'Could not find or create assignee "{assignee_name}". Check name format or server logs.'}), 400
-    assignee_id = assignee.id
-    model = data.get('model')
-    brand = data.get('brand')
-    serial_number = data.get('serial_number')
-    notes = data.get('notes')
-    last_update = datetime.now()
-    last_located = room_id
-    try:
-        new_asset = add_asset(
-            id=asset_id,
-            description=description,
-            model=model,
-            brand=brand,
-            serial_number=serial_number,
-            room_id=room_id,
-            last_located=last_located,
-            assignee_id=assignee_id,
-            last_update=last_update,
-            notes=notes
-        )
-        if new_asset:
-            try:
-                add_scan_event(
-                    asset_id=new_asset.id,
-                    user_id=current_user.id,
-                    room_id=new_asset.room_id,
-                    status=new_asset.status,
-                    notes=f"Asset created by {current_user.username}"
-                )
-            except Exception as e:
-                print(f"Warning: Could not add creation scan event for asset {new_asset.id}: {e}")
-            return jsonify({'success': True, 'asset': new_asset.get_json()}), 201
-        else:
-            existing_asset = get_asset(asset_id)
-            if existing_asset:
-                 return jsonify({'success': False, 'message': f'Asset with ID "{asset_id}" already exists.'}), 409
-            else:
-                 return jsonify({'success': False, 'message': 'Failed to add asset. Check if Room ID is valid.'}), 400
-    except Exception as e:
-        print(f"Error adding asset via API: {e}")
-        return jsonify({'success': False, 'message': 'An internal server error occurred.'}), 500
 
