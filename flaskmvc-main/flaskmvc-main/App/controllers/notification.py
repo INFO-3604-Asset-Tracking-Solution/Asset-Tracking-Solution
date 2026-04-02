@@ -1,9 +1,9 @@
 from App.models import Notification
 from App.database import db
-from datetime import datetime
 
-def create_notification(notif_id, check_id, recipient_id, message, timestamp=None):
-    new_notification = Notification(notif_id, check_id, recipient_id, message, timestamp)
+
+def create_notification(audit_id, recipient_id, message, timestamp=None):
+    new_notification = Notification(audit_id, recipient_id, message, timestamp)
 
     try:
         db.session.add(new_notification)
@@ -21,8 +21,8 @@ def get_notification_by_id(notif_id):
     return Notification.query.get(notif_id)
 
 
-def get_notifications_by_check_id(check_id):
-    return Notification.query.filter_by(check_id=check_id).all()
+def get_notifications_by_audit_id(audit_id):
+    return Notification.query.filter_by(audit_id=audit_id).all()
 
 
 def get_notifications_by_recipient_id(recipient_id):
@@ -41,18 +41,19 @@ def get_all_notifications_json():
     notifications = Notification.query.all()
     if not notifications:
         return []
-    notifications = [notification.get_json() for notification in notifications]
-    return notifications
+    return [notification.get_json() for notification in notifications]
 
 
-def update_notification(notif_id, check_id, recipient_id, message, timestamp=None):
+def update_notification(notif_id, audit_id=None, recipient_id=None, message=None, timestamp=None):
     notification = get_notification_by_id(notif_id)
 
     if notification:
-        notification.check_id = check_id
-        notification.recipient_id = recipient_id
-        notification.message = message
-
+        if audit_id is not None:
+            notification.audit_id = audit_id
+        if recipient_id is not None:
+            notification.recipient_id = recipient_id
+        if message is not None:
+            notification.message = message
         if timestamp is not None:
             notification.timestamp = timestamp
 
