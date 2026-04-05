@@ -1,288 +1,314 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
-from App.controllers.asset import *
+from App.controllers.asset import get_all_assets_json, get_asset, update_asset_details, add_asset
 from App.controllers.room import get_room
-from App.controllers.employee import get_all_employees, get_or_create_employee_by_name
-from App.controllers.assetassignment import create_asset_assignment
-from App.database import db
+from App.controllers.assetassignment import create_asset_assignment, end_assignment, get_all_asset_assignment_json, get_asset_assignment_by_id
+from App.controllers.employee import get_all_employees_json
+from App.models.assetassignment import AssetAssignment
+from App.models.assetstatus import AssetStatus
 from datetime import datetime
-from App.controllers.permissions import role_required
+from functools import wraps
+from App.database import db
 
 inventory_views = Blueprint('inventory_views', __name__, template_folder='../templates')
+
+def require_roles(*roles):
+    def wrapper(fn):
+        @wraps(fn)
+        def decorated(*args, **kwargs):
+            user = current_user
+
+            role = getattr(user, "role", None)
+
+            if role not in roles:
+                return jsonify({"message": "Access denied"}), 403
+
+            return fn(*args, **kwargs)
+        return decorated
+    return wrapper
 
 @inventory_views.route('/inventory', methods=['GET'])
 @jwt_required()
 def inventory_page():
     return render_template('inventory.html')
 
+from App.models.assetassignment import AssetAssignment  
+
+
+# ----------ASSETS-----------
+
 @inventory_views.route('/api/assets', methods=['GET'])
 @jwt_required()
 def get_assets():
     assets = get_all_assets_json()
+
+    assignment_map = {}
+
     for asset in assets:
+
+        if asset.get('status_id'):
+            status = AssetStatus.query.get(asset['status_id'])
+            asset['status_name'] = status.status_name if status else "Unknown"
+
         if asset.get('room_id'):
             room = get_room(asset['room_id'])
-            if room:
-                asset['room_name'] = room.room_name
-            else:
-                asset['room_name'] = f"Room {asset['room_id']}"
-        else:
-            asset['room_name'] = "Unknown"
-        if asset.get('assignee_id'):
-            assignee = get_assignee_by_id(asset['assignee_id'])
-            if assignee:
-                asset['assignee_name'] = str(assignee)  # Use __str__
-            else:
-                asset['assignee_name'] = f"Assignee ID: {asset['assignee_id']}"
-        else:
+            asset['room_name'] = room.room_name if room else "Unknown"
+
             asset['assignee_name'] = "Unassigned"
+
     return jsonify(assets)
-
-
-@inventory_views.route('/api/employees/all', methods=['GET'])
-@jwt_required()
-def get_employees_for_form():
-    employees = get_all_employees()
-    return jsonify([
-        {'employee_id': e.employee_id, 'full_name': f'{e.first_name} {e.last_name}'}
-        for e in employees
-    ])
-
-# @inventory_views.route('/asset/<asset_id>', methods=['GET'])
-# @jwt_required()
-# def asset_report(asset_id):
-#     asset = get_asset(asset_id)
-#     if not asset:
-#         return render_template('message.html',
-#                               title="Asset Not Found",
-#                               message=f"The asset with ID {asset_id} was not found.")
-#     room = get_room(asset.room_id) if asset.room_id else None
-#     room_name = room.room_name if room else "Unknown"
-#     last_location = get_room(asset.last_located) if asset.last_located else None
-#     last_location_name = last_location.room_name if last_location else "Unknown"
-#     assignee = get_assignee_by_id(asset.assignee_id) if asset.assignee_id else None
-#     assignee_name = str(assignee) if assignee else "Unassigned" # Use __str__
-#     scan_events = get_scans_by_asset(asset_id)
-#     enriched_scan_events = []
-#     for event in scan_events:
-#         try:
-#             event_dict = {}
-#             if hasattr(event, 'get_json') and callable(event.get_json):
-#                 # Get the JSON representation and clean up the keys
-#                 raw_dict = event.get_json()
-#                 # Remove colons and spaces from keys
-#                 event_dict = {key.rstrip(': '): value for key, value in raw_dict.items()}
-#             else:
-#                 event_dict_raw = event.__dict__.copy()
-#                 event_dict_raw.pop('_sa_instance_state', None)
-#                 for key, value in event_dict_raw.items():
-#                     # Fix key names - remove trailing colons and spaces
-#                     clean_key = key.rstrip(': ') if isinstance(key, str) else key
-#                     if isinstance(value, datetime):
-#                         # Store datetime objects directly instead of strings
-#                         event_dict[clean_key] = value
-#                     else:
-#                         event_dict[clean_key] = value
-            
-#             # Add room name
-#             scan_room = get_room(event.room_id)
-#             event_dict['room_name'] = scan_room.room_name if scan_room else f"Room {event.room_id}"
-#             enriched_scan_events.append(event_dict)
-#         except Exception as e:
-#             print(f"Error processing scan event {getattr(event, 'scan_id', 'N/A')}: {e}")
-#             enriched_scan_events.append({
-#                 'scan_id': getattr(event, 'scan_id', 'N/A'),  # Remove colon
-#                 'error': 'Could not process event data',
-#                 'scan_time': getattr(event, 'scan_time', datetime.now())  # Store as datetime object
-#             })
-
-@inventory_views.route('/asset/<asset_id>', methods=['GET'])
-@jwt_required()
-@role_required('Auditor')  # Only auditors can view asset reports
-def asset_report(asset_id):
-    asset = get_asset(asset_id)
-    if not asset:
-        return render_template('message.html',
-                              title="Asset Not Found",
-                              message=f"The asset with ID {asset_id} was not found.")
-    room = get_room(asset.room_id) if asset.room_id else None
-    room_name = room.room_name if room else "Unknown"
-    last_location = get_room(asset.last_located) if asset.last_located else None
-    last_location_name = last_location.room_name if last_location else "Unknown"
-    assignee = get_assignee_by_id(asset.assignee_id) if asset.assignee_id else None
-    assignee_name = str(assignee) if assignee else "Unassigned"  # Use __str__
-    scan_events = get_scans_by_asset(asset_id)
-    enriched_scan_events = []
-    for event in scan_events:
-        try:
-            event_dict = {}
-            if hasattr(event, 'get_json') and callable(event.get_json):
-                # Get the JSON representation and clean up the keys
-                raw_dict = event.get_json()
-                # Remove colons and spaces from keys
-                event_dict = {key.rstrip(': '): value for key, value in raw_dict.items()}
-            else:
-                event_dict_raw = event.__dict__.copy()
-                event_dict_raw.pop('_sa_instance_state', None)
-                for key, value in event_dict_raw.items():
-                    # Fix key names - remove trailing colons and spaces
-                    clean_key = key.rstrip(': ') if isinstance(key, str) else key
-                    if isinstance(value, datetime):
-                        # Store datetime objects directly instead of strings
-                        event_dict[clean_key] = value
-                    else:
-                        event_dict[clean_key] = value
-            # Add room name
-            scan_room = get_room(event.room_id)
-            event_dict['room_name'] = scan_room.room_name if scan_room else f"Room {event.room_id}"
-            enriched_scan_events.append(event_dict)
-        except Exception as e:
-            print(f"Error processing scan event {getattr(event, 'scan_id', 'N/A')}: {e}")
-            enriched_scan_events.append({
-                'scan_id': getattr(event, 'scan_id', 'N/A'),  # Remove colon
-                'error': 'Could not process event data',
-                'scan_time': getattr(event, 'scan_time', datetime.now())  # Store as datetime object
-            })
-
-    def get_scan_time(event_dict):
-        time_val = event_dict.get('scan_time')  # Use clean key
-        if isinstance(time_val, str):
-            try:
-                return datetime.strptime(time_val, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                return datetime.min
-        elif isinstance(time_val, datetime):
-            return time_val
-        else:
-            return datetime.min
-
-    enriched_scan_events.sort(key=get_scan_time, reverse=True)
-    return render_template('asset.html',
-                          asset=asset,
-                          room_name=room_name,
-                          last_location_name=last_location_name,
-                          assignee_name=assignee_name,
-                          scan_events=enriched_scan_events)
-
-@inventory_views.route('/api/asset/<asset_id>/update', methods=['POST'])
-@jwt_required()
-@role_required(['Manager', 'Administrator'])  # Managers or admins can update asset details
-def update_asset_details_endpoint(asset_id):
-    data = request.json
-    if not data:
-        return jsonify({'success': False, 'message': 'No data provided'}), 400
-    description = data.get('description')
-    model = data.get('model')
-    brand = data.get('brand')
-    serial_number = data.get('serial_number')
-    assignee_id = data.get('assignee_id')
-    notes = data.get('notes')
-    if not description:
-        return jsonify({'success': False, 'message': 'Description is required'}), 400
-    updated_asset = update_asset_details(
-        asset_id, description, model, brand, serial_number, assignee_id, notes
-    )
-    if not updated_asset:
-        return jsonify({'success': False, 'message': 'Failed to update asset. Asset not found or error occurred.'}), 404
-    try:
-        add_scan_event(
-            asset_id=asset_id,
-            user_id=current_user.id,
-            room_id=updated_asset.room_id,
-            status=updated_asset.status,
-            notes=f"Asset details updated by {current_user.username}"
-        )
-    except Exception as e:
-        print(f"Error adding scan event: {e}")
-    return jsonify({
-        'success': True,
-        'message': 'Asset details updated successfully',
-        'asset': updated_asset.get_json()
-    })
-
 
 @inventory_views.route('/api/asset/add', methods=['POST'])
 @jwt_required()
+@require_roles("Administrator", "Manager")
 def add_asset_api():
-    if current_user.role not in ['Administrator', 'Manager']:
-        return jsonify({'success': False, 'message': 'You do not have permission to add assets.'}), 403
-        
+
     data = request.json
+
     if not data:
-        return jsonify({'success': False, 'message': 'No data provided'}), 400
-        
-    description = data.get('description')
-    brand = data.get('brand')
-    model = data.get('model')
-    serial_number = data.get('serial_number')
-    notes = data.get('notes')
-    assignee_name = data.get('assignee_name')
-    
-    # Handle types for room_id and cost
+        return jsonify({'success': False, 'message': 'No data'}), 400
+
     try:
-        room_id = int(data.get('room_id')) if data.get('room_id') else None
-        cost_val = data.get('cost')
-        cost = float(cost_val) if cost_val is not None and cost_val != '' else 0.0
-    except (ValueError, TypeError):
-        return jsonify({'success': False, 'message': 'Invalid format for Room ID or Cost.'}), 400
-    
-    if not all([description, room_id, assignee_name]):
-        missing = [f for f, v in {'description': description, 'room_id': room_id, 'assignee_name': assignee_name}.items() if not v]
-        return jsonify({'success': False, 'message': f'Missing required fields: {", ".join(missing)}'}), 400
-    
-    try:
-         
-        # 1. Add Asset
+        description = data.get('description')
+
+        if not description:
+            return jsonify({'success': False, 'message': 'Missing required field'}), 400
+
         new_asset = add_asset(
             description=description,
-            brand=brand,
-            model=model,
-            serial_number=serial_number,
-            cost=cost,
-            notes=notes
+            brand=data.get('brand'),
+            model=data.get('model'),
+            serial_number=data.get('serial_number'),
+            cost =float(data.get('cost')) if data.get('cost') else None,
+            notes=data.get('notes'),
+            status_name=data.get('status_name', 'Available')
         )
-        
+
         if not new_asset:
-            return jsonify({'success': False, 'message': 'Failed to create asset. Check database logs.'}), 500
-            
-        # 2. Get or Create Employee
-        employee = get_or_create_employee_by_name(assignee_name)
-        if not employee:
-            # Cleanup if we fail early
-            db.session.delete(new_asset)
-            db.session.commit()
-            return jsonify({'success': False, 'message': f'Could not find or create employee "{assignee_name}".'}), 500
-            
-        # 3. Create Assignment
-        assignment = create_asset_assignment(
-            asset_id=new_asset.asset_id,
-            employee_id=employee.employee_id,
-            room_id=room_id,
-            condition="Good"
-        )
-        
-        if not assignment:
-            # Cleanup
-            db.session.delete(new_asset)
-            db.session.commit()
-            return jsonify({'success': False, 'message': 'Failed to create asset assignment.'}), 500
-            
+            return jsonify({'success': False, 'message': 'Failed to create asset'}), 400
+
         return jsonify({
             'success': True,
-            'message': 'Asset added and assigned successfully.',
             'asset': new_asset.get_json()
         }), 201
-        
+            
     except Exception as e:
-        db.session.rollback()
-        print(f"Error in add_asset_api: {e}")
-        return jsonify({'success': False, 'message': 'An internal server error occurred.'}), 500
+        print("Add asset error:", e)
+        return jsonify({'success': False, 'message': 'Server error'}), 500
 
-@inventory_views.route('/api/assignees', methods=['GET'])
+
+@inventory_views.route('/asset/<asset_id>', methods=['GET'])
 @jwt_required()
-@role_required('Auditor')  # Only auditors can fetch assignee list
-def get_assignees():
-    assignees = get_all_assignees_json()
-    return jsonify(assignees)
+def asset_page(asset_id):
+    asset = get_asset(asset_id)
 
+    if not asset:
+        return "Asset not found", 404
+
+    return render_template('asset_edit.html', asset=asset)
+
+
+@inventory_views.route('/api/asset/<asset_id>/update', methods=['POST'])
+@jwt_required()
+@require_roles("Administrator", "Manager")
+def update_asset_details_endpoint(asset_id):
+
+    data = request.json
+
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+    updated_asset = update_asset_details(
+        asset_id,
+        data.get('description'),
+        data.get('model'),
+        data.get('brand'),
+        data.get('serial_number'),
+        None,
+        data.get('notes')
+    )
+
+    if not updated_asset:
+        return jsonify({'success': False, 'message': 'Update failed'}), 404
+
+    return jsonify({
+        'success': True,
+        'asset': updated_asset.get_json()
+    })
+    
+@inventory_views.route('/api/asset/<asset_id>/delete', methods=['POST'])
+@jwt_required()
+@require_roles("Administrator", "Manager")
+def delete_asset_route(asset_id):
+
+    try:
+        from App.controllers.asset import delete_asset
+        success, message = delete_asset(asset_id)
+
+        if not success:
+            return jsonify({'success': False, 'message': message}), 404
+
+        return jsonify({'success': True, 'message': message})
+
+    except Exception as e:
+        print("Delete asset error:", e)
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+
+# ----------ROOMS-----------
+
+@inventory_views.route('/api/rooms/all', methods=['GET'])
+@jwt_required()
+def get_rooms():
+    from App.models.room import Room
+    rooms = Room.query.all()
+    return jsonify([{
+        'room_id': r.room_id,
+        'room_code': r.room_code,
+        'room_name': r.room_name
+    } for r in rooms])
+
+
+# ----------ASSET ASSIGNMENTS-----------
+
+@inventory_views.route('/api/assignments', methods=['GET'])
+@jwt_required()
+def get_assignments():
+    return jsonify(get_all_asset_assignment_json())
+
+
+@inventory_views.route('/api/assignments', methods=['POST'])
+@jwt_required()
+@require_roles("Administrator", "Manager")
+def create_assignment_route():
+
+    data = request.json
+    print("=== ASSIGNMENT DEBUG ===")
+    print("Received data:", data)
+
+    if not data:
+        return jsonify({'success': False, 'message': 'No data'}), 400
+
+    try:
+        asset_id = data.get('asset_id')
+        employee_id = data.get('employee_id')
+        room_id = data.get('room_id')
+
+        print(f"asset_id='{asset_id}' type={type(asset_id)}")
+        print(f"employee_id='{employee_id}' type={type(employee_id)}")
+        print(f"room_id='{room_id}' type={type(room_id)}")
+
+        from App.models import Asset, Employee, Room
+        asset = Asset.query.filter_by(asset_id=asset_id).first()
+        employee = Employee.query.filter_by(employee_id=employee_id).first()
+        room = Room.query.filter_by(room_id=room_id).first()
+
+        print(f"asset found: {asset}")
+        print(f"employee found: {employee}")
+        print(f"room found: {room}")
+
+        assignment = create_asset_assignment(
+            asset_id=asset_id,
+            employee_id=employee_id,
+            room_id=room_id,
+            condition=data.get('condition'),
+            assign_date=data.get('assign_date'),
+            #return_date=data.get('return_date') or None,
+            #status="Active"
+        )
+
+        if not assignment:
+            return jsonify({'success': False, 'message': 'Failed to create assignment'}), 400
+
+        return jsonify({'success': True, 'assignment': assignment.get_json()}), 201
+
+    except Exception as e:
+        print("Create assignment error:", e)
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@inventory_views.route('/api/assignments/<assignment_id>/end', methods=['POST'])
+@jwt_required()
+def end_assignment_route(assignment_id):
+    try:
+        updated = end_assignment(assignment_id)
+
+        if not updated:
+            return jsonify({'success': False, 'message': 'Not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'assignment': updated.get_json()
+        })
+
+    except Exception as e:
+        print("End assignment error:", e)
+        return jsonify({'success': False, 'message': 'Server error'}), 500
+
+@inventory_views.route('/assignment/<assignment_id>', methods=['GET'])
+@jwt_required()
+@require_roles("Administrator", "Manager", "Auditor")
+def assignment_edit_page(assignment_id):
+
+    from App.controllers.assetassignment import get_asset_assignment_by_id
+    assignment = get_asset_assignment_by_id(assignment_id)
+
+    if not assignment:
+        return "Assignment not found", 404
+
+    return render_template('assignment_edit.html', assignment=assignment)
+
+
+@inventory_views.route('/api/assignments/<assignment_id>/update', methods=['POST'])
+def update_assignment(assignment_id):
+    data = request.get_json()
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    role = current_user.role
+
+    # AUDITOR can ONLY return_date
+    if role == "Auditor":
+        if "return_date" not in data:
+            return jsonify({"success": False, "message": "return_date required"}), 400
+
+        assignment.return_date = data["return_date"]
+
+    # ADMIN and  MANAGER 
+    else:
+        if "asset_id" in data:
+            assignment.asset_id = data["asset_id"]
+
+        if "employee_id" in data:
+            assignment.employee_id = data["employee_id"]
+
+        if "room_id" in data:
+            assignment.room_id = data["room_id"]
+
+        if "condition" in data:
+            assignment.condition = data["condition"]
+
+        if "return_date" in data:
+            assignment.return_date = data["return_date"]
+
+    db.session.commit()
+
+    return jsonify({"success": True, "message": "Assignment updated"})
+
+@inventory_views.route('/api/assignments/<assignment_id>/delete', methods=['POST'])
+@jwt_required()
+@require_roles("Administrator", "Manager")
+def delete_assignment_route(assignment_id):
+
+    try:
+        from App.controllers.assetassignment import delete_asset_assignment
+        success = delete_asset_assignment(assignment_id)
+
+        if not success:
+            return jsonify({'success': False, 'message': 'Not found'}), 404
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print("Delete assignment error:", e)
+        return jsonify({'success': False, 'message': 'Server error'}), 500
 

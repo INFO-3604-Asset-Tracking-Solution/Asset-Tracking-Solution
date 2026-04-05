@@ -3,19 +3,17 @@
  * Handles loading, filtering, sorting, and managing inventory assets
  */
 
-// Filter state management
+/* FILTER STATE MANAGEMENT */
 const filterState = {
     searchTerm: '',
     statusFilters: new Set(),
     columnFilter: null,
-    columnNames: ['description', 'id', 'brandModel', 'location', 'status', 'assignee', 'lastUpdate'],
+    columnNames: ['description', 'Asset Tag', 'brandModel', 'Serial Number', 'Cost', 'status', 'lastUpdate', 'Action'],
 
-    // Apply filters to the table
     applyFilters: function () {
         handleSearch();
     },
 
-    // Add a status filter
     addStatusFilter: function (status) {
         if (this.statusFilters.has(status)) {
             this.statusFilters.delete(status);
@@ -26,821 +24,695 @@ const filterState = {
         this.updateFilterUI();
     },
 
-    // Set column to filter on
     setColumnFilter: function (columnIndex) {
         this.columnFilter = this.columnFilter === columnIndex ? null : columnIndex;
         this.applyFilters();
         this.updateFilterUI();
     },
 
-    // Reset all filters
     resetFilters: function () {
         this.searchTerm = '';
         this.statusFilters.clear();
         this.columnFilter = null;
-        document.getElementById('searchInput').value = '';
+
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.value = '';
+
         this.applyFilters();
         this.updateFilterUI();
     },
 
-    // Update UI to show active filters
     updateFilterUI: function () {
-        // Update status filter buttons
-        document.querySelectorAll('.status-filter').forEach(button => {
-            const status = button.getAttribute('data-status');
-            if (this.statusFilters.has(status)) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
+        document.querySelectorAll('.status-filter').forEach(btn => {
+            const status = btn.getAttribute('data-status');
+            btn.classList.toggle('active', this.statusFilters.has(status));
         });
 
-        // Update column filter buttons
-        document.querySelectorAll('.column-filter').forEach(button => {
-            const column = parseInt(button.getAttribute('data-column'));
-            if (this.columnFilter === column) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
+        document.querySelectorAll('.column-filter').forEach(btn => {
+            const column = parseInt(btn.getAttribute('data-column'));
+            btn.classList.toggle('active', this.columnFilter === column);
         });
 
-        // Update filter tags
         this.updateFilterTags();
     },
 
-    // Show visual representation of active filters
     updateFilterTags: function () {
-        const filterTagsContainer = document.getElementById('activeFilters');
-        if (!filterTagsContainer) return;
+        const container = document.getElementById('activeFilters');
+        if (!container) return;
 
-        filterTagsContainer.innerHTML = '';
+        container.innerHTML = '';
 
-        // Add status filter tags
         this.statusFilters.forEach(status => {
-            const tagElement = document.createElement('div');
-            tagElement.className = 'active-filter-tag';
-            tagElement.innerHTML = `
+            const tag = document.createElement('div');
+            tag.className = 'active-filter-tag';
+            tag.innerHTML = `
                 <span>Status: ${status}</span>
                 <span class="remove-filter" data-filter-type="status" data-filter-value="${status}">×</span>
             `;
-            filterTagsContainer.appendChild(tagElement);
+            container.appendChild(tag);
         });
 
-        // Add column filter tag
         if (this.columnFilter !== null) {
-            const columnNames = [
-                'Description', 'Asset Tag', 'Brand/Model',
-                'Location', 'Status', 'Assignee', 'Last Update'
-            ];
-            const tagElement = document.createElement('div');
-            tagElement.className = 'active-filter-tag';
-            tagElement.innerHTML = `
-                <span>Column: ${columnNames[this.columnFilter]}</span>
+            const names = ['Description', 'Asset Tag', 'Brand/Model', 'Location', 'Status', 'Assignee', 'Last Update'];
+
+            const tag = document.createElement('div');
+            tag.className = 'active-filter-tag';
+            tag.innerHTML = `
+                <span>Column: ${names[this.columnFilter]}</span>
                 <span class="remove-filter" data-filter-type="column">×</span>
             `;
-            filterTagsContainer.appendChild(tagElement);
+            container.appendChild(tag);
         }
 
-        // Add search term tag
         if (this.searchTerm) {
-            const tagElement = document.createElement('div');
-            tagElement.className = 'active-filter-tag';
-            tagElement.innerHTML = `
+            const tag = document.createElement('div');
+            tag.className = 'active-filter-tag';
+            tag.innerHTML = `
                 <span>Search: "${this.searchTerm}"</span>
                 <span class="remove-filter" data-filter-type="search">×</span>
             `;
-            filterTagsContainer.appendChild(tagElement);
+            container.appendChild(tag);
         }
 
-        // Show or hide the filters container
         const filtersContainer = document.getElementById('filtersContainer');
         if (filtersContainer) {
-            if (this.statusFilters.size > 0 || this.columnFilter !== null || this.searchTerm) {
-                filtersContainer.classList.remove('d-none');
-            } else {
-                filtersContainer.classList.add('d-none');
-            }
+            const hasFilters =
+                this.statusFilters.size > 0 ||
+                this.columnFilter !== null ||
+                this.searchTerm;
+
+            filtersContainer.classList.toggle('d-none', !hasFilters);
         }
     }
 };
 
-/**
- * Utility Functions
- */
+
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-            // Handle string date formats
-            if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}/)) {
-                return dateString.split(' ')[0];
-            }
-            return dateString;
-        }
-
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    } catch (e) {
-        console.error("Date formatting error:", e);
-        return dateString;
-    }
-}
-
-function showLoading(show = true) {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = show ? 'block' : 'none';
-    }
+    const date = new Date(dateString);
+    if (isNaN(date)) return dateString;
+    return date.toISOString().split('T')[0];
 }
 
 function showMessage(message, type = 'info') {
-    const alertContainer = document.getElementById('alertContainer');
-    if (!alertContainer) return;
+    const container = document.getElementById('alertContainer');
+    if (!container) return;
 
-    const alertElement = document.createElement('div');
-    alertElement.className = `alert alert-${type} alert-dismissible fade show`;
-    alertElement.innerHTML = `
+    const el = document.createElement('div');
+    el.className = `alert alert-${type} alert-dismissible fade show`;
+    el.innerHTML = `
         ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
-    alertContainer.appendChild(alertElement);
+    container.appendChild(el);
 
-    // Auto-dismiss after 5 seconds
     setTimeout(() => {
-        if (alertElement.parentNode) {
-            const bsAlert = new bootstrap.Alert(alertElement);
-            bsAlert.close();
-        }
+        new bootstrap.Alert(el).close();
     }, 5000);
 }
 
-/**
- * API Functions
- */
+function showLoading(show = true) {
+    const el = document.getElementById('loadingIndicator');
+    if (el) el.style.display = show ? 'block' : 'none';
+}
+
+/* ------------ASSETS------------ */
+
 async function loadAssets() {
     try {
         showLoading(true);
-        const response = await fetch('/api/assets');
-        if (!response.ok) {
-            throw new Error(`Failed to fetch assets: ${response.status} ${response.statusText}`);
-        }
-        const assets = await response.json();
-        displayAssets(assets);
-    } catch (error) {
-        console.error('Error loading assets:', error);
-        document.getElementById('assetTableBody').innerHTML = `
-            <tr><td colspan="8" class="text-center">
-                <div class="alert alert-danger mb-0">
-                    Error loading assets. Please try again later.<br>
-                    <small>${error.message}</small>
-                </div>
-            </td></tr>
-        `;
+
+        const res = await fetch('/api/assets', {
+            credentials: 'same-origin'
+        });
+        const data = await res.json();
+
+        console.log("ASSETS:", data);
+
+        displayAssets(data);
+
+    } catch (err) {
+        console.error(err);
+        showMessage('Failed to load assets', 'danger');
     } finally {
         showLoading(false);
     }
 }
 
-async function initSearchableDropdown({ searchInputId, hiddenInputId, listId, fetchUrl, labelKey, valueKey, allowFreeText = false }) {
-    const searchInput = document.getElementById(searchInputId);
-    const hiddenInput = document.getElementById(hiddenInputId);
-    const list = document.getElementById(listId);
-    if (!searchInput || !hiddenInput || !list) return;
-
-    let allItems = [];
-
-    // Fetch data
-    try {
-        const response = await fetch(fetchUrl);
-        if (response.ok) {
-            allItems = await response.json();
-        }
-    } catch (e) {
-        console.error(`Error fetching ${fetchUrl}:`, e);
-    }
-
-    function renderList(filter = '') {
-        const filtered = filter
-            ? allItems.filter(item => String(item[labelKey]).toLowerCase().includes(filter.toLowerCase()))
-            : allItems;
-
-        list.innerHTML = '';
-        if (filtered.length === 0) {
-            const noResult = document.createElement('div');
-            noResult.className = 'searchable-dropdown-item no-results';
-            noResult.textContent = allowFreeText ? `Use "${filter}"` : 'No results found';
-            if (allowFreeText && filter) {
-                noResult.classList.remove('no-results');
-                noResult.addEventListener('click', () => {
-                    hiddenInput.value = filter;
-                    searchInput.value = filter;
-                    list.classList.remove('open');
-                });
-            }
-            list.appendChild(noResult);
-        } else {
-            filtered.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'searchable-dropdown-item';
-                div.textContent = item[labelKey];
-                div.addEventListener('click', () => {
-                    searchInput.value = item[labelKey];
-                    hiddenInput.value = valueKey ? item[valueKey] : item[labelKey];
-                    list.classList.remove('open');
-                });
-                list.appendChild(div);
-            });
-        }
-        list.classList.toggle('open', filter !== '' || document.activeElement === searchInput);
-    }
-
-    searchInput.addEventListener('focus', () => renderList(searchInput.value));
-    searchInput.addEventListener('input', () => {
-        if (allowFreeText) hiddenInput.value = searchInput.value; // Update on each keystroke for free text
-        renderList(searchInput.value);
-    });
-
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !list.contains(e.target)) {
-            list.classList.remove('open');
-        }
-    }, { capture: true });
-}
-
 async function loadRoomsForModal() {
-    await initSearchableDropdown({
-        searchInputId: 'addAssetRoomSearch',
-        hiddenInputId: 'addAssetRoomSelect',
-        listId: 'roomDropdownList',
-        fetchUrl: '/api/rooms/all',
-        labelKey: 'room_name',
-        valueKey: 'room_id',
-    });
+    const select = document.getElementById('addAssetRoomSelect');
+    if (!select) return;
 
-    await initSearchableDropdown({
-        searchInputId: 'addAssetAssigneeSearch',
-        hiddenInputId: 'addAssetAssigneeInput',
-        listId: 'assigneeDropdownList',
-        fetchUrl: '/api/employees/all',
-        labelKey: 'full_name',
-        valueKey: 'full_name',
-        allowFreeText: true,
-    });
+    try {
+        const res = await fetch('/api/rooms/all');
+        const rooms = await res.json();
+
+        select.innerHTML = '<option disabled selected>Select Room</option>';
+
+        rooms.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.room_code;
+            opt.textContent = r.room_name;
+            select.appendChild(opt);
+        });
+
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 async function saveNewAsset() {
-    const form = document.getElementById('addAssetForm');
-    const errorDiv = document.getElementById('addAssetError');
+    const payload = {
+        description: document.getElementById('addAssetDescription')?.value,
+        brand: document.getElementById('addAssetBrand')?.value,
+        model: document.getElementById('addAssetModel')?.value,
+        serial_number: document.getElementById('addAssetSerialNumber')?.value,
+        status_name: "Available",        
+        cost: document.getElementById('addAssetCost')?.value,
+        notes: document.getElementById('addAssetNotes')?.value
+    };  
 
-    // Hide previous error
-    if (errorDiv) {
-        errorDiv.classList.add('d-none');
-        errorDiv.textContent = '';
-    }
-
-    // Validate form
-    const description = document.getElementById('addAssetDescription')?.value.trim();
-    const roomId = document.getElementById('addAssetRoomSelect')?.value;
-    const assigneeName = document.getElementById('addAssetAssigneeInput')?.value.trim();
-
-    if (!description || !roomId || !assigneeName) {
-        if (errorDiv) {
-            errorDiv.textContent = 'Please fill in all required fields (*).';
-            errorDiv.classList.remove('d-none');
-        }
+    if (!payload.description) {
+        showMessage("Please fill required fields", "warning");
         return;
     }
-
-    const costRaw = document.getElementById('addAssetCost')?.value;
-    const cost = costRaw !== '' && costRaw !== null ? parseFloat(costRaw) : null;
-
-    if (cost !== null && cost < 0) {
-        if (errorDiv) {
-            errorDiv.textContent = 'Cost cannot be less than 0.';
-            errorDiv.classList.remove('d-none');
-        }
-        return;
-    }
-
-    const assetData = {
-        description: description,
-        brand: document.getElementById('addAssetBrand')?.value.trim() || '',
-        model: document.getElementById('addAssetModel')?.value.trim() || '',
-        serial_number: document.getElementById('addAssetSerialNumber')?.value.trim() || '',
-        cost: cost,
-        room_id: roomId,
-        assignee_name: assigneeName,
-        notes: document.getElementById('addAssetNotes')?.value.trim() || '',
-    };
-
-    // Save button state
-    const saveBtn = document.getElementById('saveNewAssetBtn');
-    const originalText = saveBtn ? saveBtn.innerHTML : '';
 
     try {
-        if (saveBtn) {
-            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-            saveBtn.disabled = true;
-        }
-
-        const response = await fetch('/api/asset/add', {
+        const res = await fetch('/api/asset/add', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(assetData)
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+            credentials: 'same-origin'
+
         });
 
-        const result = await response.json();
+        const data = await res.json();
 
-        if (response.ok && result.success) {
-            // Close modal
-            const addModalInstance = bootstrap.Modal.getInstance(document.getElementById('addAssetModal'));
-            if (addModalInstance) {
-                addModalInstance.hide();
-            }
-            // Force-clean any leftover Bootstrap backdrop & styles
-            const cleanupModal = () => {
-                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-                document.documentElement.style.overflow = '';
-            };
-            cleanupModal();
-            setTimeout(cleanupModal, 300); // Secondary cleanup to ensure Bootstrap doesn't overwrite
-
-            // Show success message
-            showMessage(`Asset "${result.asset.description}" added successfully.`, 'success');
-
-            // Reload assets
+        if (res.ok && data.success) {
+            showMessage('Asset created successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addAssetModal')).hide();
             loadAssets();
         } else {
-            // Show error
-            if (errorDiv) {
-                errorDiv.textContent = result.message || 'An unknown error occurred.';
-                errorDiv.classList.remove('d-none');
-            }
+            showMessage(data.message || 'Failed to create asset', 'danger');
         }
-    } catch (error) {
-        console.error('Error saving asset:', error);
-        if (errorDiv) {
-            errorDiv.textContent = 'A network or server error occurred. Please try again.';
-            errorDiv.classList.remove('d-none');
-        }
-    } finally {
-        // Reset button state
-        if (saveBtn) {
-            saveBtn.innerHTML = originalText;
-            saveBtn.disabled = false;
-        }
+
+    } catch (err) {
+        console.error(err);
+        showMessage("Server error", "danger");
     }
 }
 
-async function proposeNewAsset() {
-    const errorDiv = document.getElementById('addAssetError');
-
-    // Hide previous error
-    if (errorDiv) {
-        errorDiv.classList.add('d-none');
-        errorDiv.textContent = '';
-    }
-
-    // Validate required fields
-    const description = document.getElementById('addAssetDescription')?.value.trim();
-    const costRaw = document.getElementById('addAssetCost')?.value;
-
-    if (!description || !costRaw) {
-        if (errorDiv) {
-            errorDiv.textContent = 'Please provide all required fields (*).'
-            errorDiv.classList.remove('d-none');
-        }
-        return;
-    }
-
-    const cost = costRaw !== '' && costRaw !== null ? parseFloat(costRaw) : null;
-    if (cost !== null && cost < 0) {
-        if (errorDiv) {
-            errorDiv.textContent = 'Cost cannot be less than 0.';
-            errorDiv.classList.remove('d-none');
-        }
-        return;
-    }
-
-    const proposalData = {
-        description: description,
-        brand: document.getElementById('addAssetBrand')?.value.trim() || '',
-        model: document.getElementById('addAssetModel')?.value.trim() || '',
-        serial_number: document.getElementById('addAssetSerialNumber')?.value.trim() || '',
-        cost: cost,
-        notes: document.getElementById('addAssetNotes')?.value.trim() || '',
-    };
-
-    // Button state
-    const proposeBtn = document.getElementById('proposeNewAssetBtn');
-    const originalText = proposeBtn ? proposeBtn.innerHTML : '';
-
-    try {
-        if (proposeBtn) {
-            proposeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
-            proposeBtn.disabled = true;
-        }
-
-        const response = await fetch('/api/authorizations/propose', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(proposalData)
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addAssetModal'));
-            if (modal) { modal.hide(); }
-
-            // Force-clean any leftover Bootstrap backdrop & styles
-            const cleanupModal = () => {
-                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-                document.documentElement.style.overflow = '';
-            };
-            cleanupModal();
-            setTimeout(cleanupModal, 300); // Secondary cleanup to ensure Bootstrap doesn't overwrite
-
-            showMessage(`Proposal submitted for review.`, 'success');
-            loadAssets();
-        } else {
-            if (errorDiv) {
-                errorDiv.textContent = result.message || 'Failed to submit proposal.';
-                errorDiv.classList.remove('d-none');
-            }
-        }
-    } catch (error) {
-        console.error('Error proposing asset:', error);
-        if (errorDiv) {
-            errorDiv.textContent = 'A network or server error occurred. Please try again.';
-            errorDiv.classList.remove('d-none');
-        }
-    } finally {
-        if (proposeBtn) {
-            proposeBtn.innerHTML = originalText;
-            proposeBtn.disabled = false;
-        }
-    }
-}
-
-/**
- * UI Functions
- */
 function displayAssets(assets) {
-    const tableBody = document.getElementById('assetTableBody');
-    if (!tableBody) return;
+    const body = document.getElementById('assetTableBody');
+    if (!body) return;
 
-    if (!assets || assets.length === 0) {
-        tableBody.innerHTML = `
-            <tr><td colspan="8" class="text-center">
-                <div class="py-4">
-                    <i class="bi bi-box text-muted" style="font-size: 2rem;"></i>
-                    <p class="mt-2 text-muted">No assets found</p>
-                </div>
-            </td></tr>
-        `;
-        return;
-    }
+    body.innerHTML = '';
 
-    // Clear table
-    tableBody.innerHTML = '';
-
-    // Create rows
-    assets.forEach(asset => {
-        // Extract data
-        const description = asset.description || 'Unknown Asset';
-        const assetId = asset.id || asset['id:'] || '';
-        const roomName = asset.room_name || `Room Id: ${asset.room_id}` || 'N/A';
-        const assigneeName = asset.assignee_name || 'Unassigned';
-        const brandModel = `${asset.brand || ''} ${asset.model || ''}`.trim() || 'N/A';
-        const status = asset.status || 'Unknown';
-        const lastUpdate = formatDate(asset.last_update);
-
-        // Create row
+    assets.forEach(a => {
         const row = document.createElement('tr');
-        row.setAttribute('data-asset-id', assetId);
 
-        // Set data attributes for filtering
-        row.setAttribute('data-description', description.toLowerCase());
-        row.setAttribute('data-id', assetId.toLowerCase());
-        row.setAttribute('data-brand-model', brandModel.toLowerCase());
-        row.setAttribute('data-location', roomName.toLowerCase());
-        row.setAttribute('data-status', status.toLowerCase());
-        row.setAttribute('data-assignee', assigneeName.toLowerCase());
-        row.setAttribute('data-last-update', asset.last_update || '');
-
-        // Build row HTML
         row.innerHTML = `
-            <td>${description}</td>
-            <td>${assetId}</td>
-            <td>${brandModel}</td>
-            <td>${roomName}</td>
+            <td>${a.description ?? ''}</td>
+            <td>${a.asset_id ?? ''}</td>
+            <td>${(a.brand ?? '') + ' ' + (a.model ?? '')}</td>
+            <td>${a.serial_number ?? ''}</td>
+            <td>${a.cost ?? ''}</td>
+            <td>${a.status_name ?? a.status ?? ''}</td>
+            <td>${formatDate(a.last_update)}</td>
             <td>
-                <div class="status-indicator status-${status.toLowerCase()}">
-                    <span class="status-dot status-${status.toLowerCase()}"></span>
-                    ${status}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light dropdown-toggle"
+                            data-bs-toggle="dropdown">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item text-primary"
+                               href="/asset/${a.asset_id}">
+                                Edit Asset
+                            </a>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item text-danger"
+                                onclick="deleteAsset('${a.asset_id}')">
+                                Delete Asset
+                            </button>
+                        </li>
+                    </ul>
                 </div>
-            </td>
-            <td>${assigneeName}</td>
-            <td>${lastUpdate}</td>
-            <td>
-                <a href="/asset/${assetId}" class="btn btn-sm btn-outline-primary" title="Edit Asset">
-                    <i class="bi bi-pencil"></i>
-                </a>
             </td>
         `;
 
-        tableBody.appendChild(row);
+        body.appendChild(row);
+    });
+}
+
+
+function handleSearch() {    
+    const input = document.getElementById('searchInput');
+    const term = input?.value.toLowerCase() || '';
+    filterState.searchTerm = term;
+
+    document.querySelectorAll('#assetTableBody tr').forEach(row => {        
+        let matchesSearch = false;
+
+        if (filterState.columnFilter !== null) {
+            // Search ONLY selected column
+            const cell = row.querySelector(`td:nth-child(${filterState.columnFilter + 1})`);
+            const text = cell?.textContent.toLowerCase() || '';
+            matchesSearch = text.includes(term);
+        }else{
+            // Search entire row
+            const text = row.textContent.toLowerCase();
+            matchesSearch = text.includes(term);
+        }
+
+        row.style.display = matchesSearch ? '' : 'none';
+    });
+}
+
+
+async function updateAsset() {
+    const assetId = document.getElementById("assetId").value;
+
+    const payload = {
+        description: document.getElementById("description").value,
+        brand: document.getElementById("brand").value,
+        model: document.getElementById("model").value,
+        serial_number: document.getElementById("serial_number").value,
+        notes: document.getElementById("notes").value
+    };
+
+    const res = await fetch(`/api/asset/${assetId}/update`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
     });
 
-    // Apply any active filters
-    if (filterState.searchTerm || filterState.statusFilters.size > 0 || filterState.columnFilter !== null) {
-        filterState.applyFilters();
+    const data = await res.json();
+
+    if (data.success) {
+        alert("Asset updated successfully");
+        window.location.href = "/inventory";
+    } else {
+        alert(data.message || "Update failed");
     }
 }
 
-function handleSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-    filterState.searchTerm = searchTerm;
+async function deleteAsset(assetId) {
+    if (!confirm('Are you sure you want to delete this asset? This cannot be undone.')) return;
 
-    const rows = document.querySelectorAll('#assetTableBody tr');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-        // Skip the "no results" row if it exists
-        if (row.id === 'noResultsRow') return;
-
-        let shouldDisplay = true;
-
-        // Check status filters
-        if (filterState.statusFilters.size > 0) {
-            const rowStatus = row.getAttribute('data-status');
-            if (!filterState.statusFilters.has(rowStatus)) {
-                shouldDisplay = false;
-            }
+    fetch(`/api/asset/${assetId}/delete`, {
+        method: 'POST',
+        credentials: 'same-origin'
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Asset deleted');
+            loadAssets();
+        } else {
+            alert(data.message || 'Failed to delete');
         }
+    })
 
-        // Apply text search if still visible
-        if (shouldDisplay && searchTerm) {
-            if (filterState.columnFilter !== null) {
-                // Search in specific column
-                const columnName = filterState.columnNames[filterState.columnFilter];
-                const attributeName = `data-${columnName.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-                const cellValue = row.getAttribute(attributeName) || '';
-
-                if (!cellValue.includes(searchTerm)) {
-                    shouldDisplay = false;
-                }
-            } else {
-                // Search across all text content
-                const rowText = row.textContent.toLowerCase();
-                if (!rowText.includes(searchTerm)) {
-                    shouldDisplay = false;
-                }
-            }
-        }
-
-        // Update visibility
-        row.style.display = shouldDisplay ? '' : 'none';
-
-        if (shouldDisplay) {
-            visibleCount++;
-        }
+    .catch (err => {
+        console.error(err);
+        alert('Server error');
     });
+}
 
-    // Show or hide "no results" message
-    const tableBody = document.getElementById('assetTableBody');
-    if (tableBody) {
-        let noResultsRow = document.getElementById('noResultsRow');
 
-        if (visibleCount === 0) {
-            if (!noResultsRow) {
-                noResultsRow = document.createElement('tr');
-                noResultsRow.id = 'noResultsRow';
-                noResultsRow.innerHTML = `
-                    <td colspan="8" class="text-center py-4">
-                        <i class="bi bi-search text-muted" style="font-size: 2rem;"></i>
-                        <p class="mt-2 text-muted">No assets match your search criteria</p>
-                        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="filterState.resetFilters()">
-                            <i class="bi bi-x-circle me-1"></i> Clear Filters
+/* ------------ASSETS ASSIGNMENTS------------ */
+
+function openAssignmentModal() {
+    const modal = new bootstrap.Modal(document.getElementById('assignmentModal'));
+    modal.show();
+}
+
+async function submitAssignment() {
+    const payload = {
+        asset_id: document.getElementById('assignAssetId').value,
+        employee_id: document.getElementById('assignEmployeeId').value,
+        room_id: document.getElementById('assignRoomId').value,
+        condition: document.getElementById('assignCondition').value,
+        assign_date: document.getElementById('assignDate').value,
+    };
+
+    console.log("Sending assignment:", payload);
+
+    try {
+        const res = await fetch('/api/assignments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+            credentials: 'same-origin'
+        });
+
+        const data = await res.json();
+        /*console.log("Response:", data);*/
+
+        if (res.ok && data.success) {
+            showMessage('Assignment created', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('assignmentModal')).hide();
+            loadAssets();
+        } else {
+            showMessage(data.message || 'Failed assignment', 'danger');
+        }
+
+    } catch (err) {
+        console.error(err);
+        showMessage("Server error", "danger");
+    }
+}
+
+
+async function updateAssignment() {
+    const assignmentId = document.getElementById('assignmentId').value;
+
+    // Auditor is only allowed to update return_date
+    const payload = {
+        return_date: document.getElementById('returnDate').value || null
+    };
+
+    try {
+        const res = await fetch(`/api/assignments/${assignmentId}/update`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            alert("Assignment updated successfully");
+            history.back();
+        } else {
+            alert(data.message || "Update failed");
+        }
+
+    } catch (err) {
+        console.error(err);
+        alert("Server error");
+    }
+}
+
+async function loadAssignments() {
+    try {
+        const res = await fetch('/api/assignments', {
+            credentials: 'same-origin'
+        });
+        const assignments = await res.json();
+
+        const body = document.getElementById('assignmentsTableBody');
+        body.innerHTML = '';
+
+        if (assignments.length === 0) {
+            body.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No assignments found</td></tr>';
+            return;
+        }
+
+        assignments.forEach(a => {
+            const status = a.return_date ? 'Completed' : 'Active';
+
+            let badgeClass = 'bg-secondary';
+
+            if(status == 'Active') badgeClass = 'bg-success';
+            else if (status === 'Completed') badgeClass = 'bg-primary';
+           /* else badgeClass = 'bg-secondary'; */
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${a.assignment_id ?? ''}</td>
+                <td>${a.asset_id ?? ''}</td>
+                <td>${a.employee_id ?? ''}</td>
+                <td>${a.room_id ?? ''}</td>
+                <td>${a.condition ?? ''}</td>
+                <td>${formatDate(a.assignment_date)}</td>
+                <td>${a.return_date ? formatDate(a.return_date) : 'N/A'}</td>
+                <td>
+                    <span class="badge ${badgeClass}">
+                        ${status}
+                    </span>
+                </td>
+                <td>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown">
+                            Actions
                         </button>
+
+                        <ul class="dropdown-menu">
+
+                            <li>
+                                <a class="dropdown-item"
+                                    href="/assignment/${a.assignment_id}">
+                                        Edit Assignment
+                                </a>
+                            </li>
+
+                            <li>
+                                <button class="dropdown-item text-danger"
+                                    onclick="deleteAssignment('${a.assignment_id}')">
+                                    Delete 
+                                </button>
+                            </li>
+
+                        </ul>
+                    </div>
+                </td>                
+            `;
+            body.appendChild(row);
+        });
+
+    } catch (err) {
+        console.error(err);
+        alert('Failed to load assignments');
+    }
+}
+
+async function viewAssignments() {
+    try {
+        const res = await fetch('/api/assignments', {
+            credentials: 'same-origin'
+        });
+        const assignments = await res.json();
+
+        const body = document.getElementById('assignmentsTableBody');
+        body.innerHTML = '';
+
+        if (assignments.length === 0) {
+            body.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No assignments found</td></tr>';
+        } else {
+            assignments.forEach(a => {
+                const status = a.return_date ? 'Completed' : 'Active';
+
+                let badgeClass = 'bg-secondary';
+                if(status == 'Active') badgeClass = 'bg-success';
+                else if (status === 'Completed') badgeClass = 'bg-primary';
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${a.assignment_id ?? ''}</td>
+                    <td>${a.asset_id ?? ''}</td>
+                    <td>${a.employee_id ?? ''}</td>
+                    <td>${a.room_id ?? ''}</td>
+                    <td>${a.condition ?? ''}</td>
+                    <td>${formatDate(a.assignment_date)}</td>
+                    <td>${a.return_date ? formatDate(a.return_date) : 'N/A'}</td>
+                    <td>
+                        <span class="badge ${badgeClass}">
+                            ${status}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light dropdown-toggle"
+                                    data-bs-toggle="dropdown">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item"
+                                        href="/assignment/${a.assignment_id}">
+                                        Edit Assignment
+                                    </a>
+                                </li>
+                        
+                                <li>
+                                    <button class="dropdown-item text-danger"
+                                        onclick="deleteAssignment('${a.assignment_id}')">
+                                        Delete Assignment
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                     </td>
                 `;
-                tableBody.appendChild(noResultsRow);
-            } else {
-                noResultsRow.style.display = '';
-            }
-        } else if (noResultsRow) {
-            noResultsRow.style.display = 'none';
-        }
-    }
-
-    // Update filter UI
-    filterState.updateFilterUI();
-
-    // Update results count
-    const resultsCount = document.getElementById('resultsCount');
-    if (resultsCount) {
-        resultsCount.textContent = `${visibleCount} asset${visibleCount !== 1 ? 's' : ''} found`;
-    }
-}
-
-function sortTable(columnIndex) {
-    const table = document.querySelector('.inventory-table table');
-    if (!table) return;
-
-    const tbody = table.querySelector('tbody');
-    if (!tbody) return;
-
-    const rows = Array.from(tbody.querySelectorAll('tr:not(#noResultsRow)'));
-    if (rows.length === 0) return;
-
-    // Update sort icons
-    const icons = table.querySelectorAll('th i.bi');
-    icons.forEach((icon, index) => {
-        if (index !== columnIndex) {
-            icon.classList.remove('bi-sort-up');
-            icon.classList.add('bi-sort-down');
-        }
-    });
-
-    const icon = icons[columnIndex];
-    const isCurrentlyAscending = icon.classList.contains('bi-sort-up');
-    const isAscending = !isCurrentlyAscending;
-
-    // Update icon
-    if (isAscending) {
-        icon.classList.remove('bi-sort-down');
-        icon.classList.add('bi-sort-up');
-    } else {
-        icon.classList.remove('bi-sort-up');
-        icon.classList.add('bi-sort-down');
-    }
-
-    // Sort rows
-    rows.sort((a, b) => {
-        const aValue = a.cells[columnIndex].textContent.trim();
-        const bValue = b.cells[columnIndex].textContent.trim();
-
-        // Special handling for date columns
-        if (columnIndex === 6) { // Last update
-            const dateA = new Date(aValue);
-            const dateB = new Date(bValue);
-            if (!isNaN(dateA) && !isNaN(dateB)) {
-                return isAscending ? dateA - dateB : dateB - dateA;
-            }
+                body.appendChild(row);
+            });
         }
 
-        // Default string comparison
-        return isAscending
-            ? aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' })
-            : bValue.localeCompare(aValue, undefined, { numeric: true, sensitivity: 'base' });
-    });
+        const searchInput = document.getElementById('assignmentSearchInput');
+        const filterSelect = document.getElementById('assignmentFilterColumn');
 
-    // Preserve the "no results" row
-    const noResultsRow = document.getElementById('noResultsRow');
-    if (noResultsRow && noResultsRow.parentNode === tbody) {
-        tbody.removeChild(noResultsRow);
-    }
+        if (searchInput) {
+            searchInput.addEventListener('input', handleAssignmentSearch);
+        }
 
-    // Reorder rows
-    tbody.innerHTML = '';
-    rows.forEach(row => tbody.appendChild(row));
+        if (filterSelect) {
+            filterSelect.addEventListener('change', handleAssignmentSearch);
+        }
 
-    // Re-add the "no results" row if needed
-    if (noResultsRow) {
-        tbody.appendChild(noResultsRow);
+        const modal = new bootstrap.Modal(document.getElementById('viewAssignmentsModal'));
+        modal.show();
+
+    } catch (err) {
+        console.error(err);
+        showMessage('Failed to Load Assignments', 'danger');
     }
 }
 
-function clearAddAssetForm() {
-    const form = document.getElementById('addAssetForm');
-    if (form) form.reset();
+async function updateAssignmentStatus(assignmentId, status) {
+    try {
+        const res = await fetch(`/api/assignments/${assignmentId}/update`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ status }),
+            credentials: 'same-origin'
+        });
 
-    // Reset searchable dropdown visible inputs
-    ['addAssetRoomSearch', 'addAssetAssigneeSearch'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    ['roomDropdownList', 'assigneeDropdownList'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('open');
-    });
+        const data = await res.json();
 
-    const errorDiv = document.getElementById('addAssetError');
-    if (errorDiv) {
-        errorDiv.classList.add('d-none');
-        errorDiv.textContent = '';
+        if (data.success) {
+            showMessage("Status updated", "success");
+            loadAssignments();
+        } else {
+            showMessage(data.message || "Failed to update status", "danger");
+        }
+
+    } catch (err) {
+        console.error(err);
+        showMessage("Server error", "danger");
     }
 }
 
-function setupEventListeners() {
-    // Search input
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            filterState.searchTerm = searchInput.value.toLowerCase();
+async function cancelAssignment(assignmentId) {
+    if (!confirm('Are you sure you want to end this assignment?')) return;
+
+    try {
+        const res = await fetch(`/api/assignments/${assignmentId}/end`, {
+            method: 'POST',
+            credentials: 'same-origin'
         });
+        const data = await res.json();
 
-        searchInput.addEventListener('keyup', event => {
-            if (event.key === 'Enter') {
-                handleSearch();
-            }
-        });
-    }
+        if (res.ok && data.success) {
+            loadAssignments();
+        } else {
+            alert(data.message || 'Failed to End Assignment');
+        }
 
-    // Search button
-    const searchButton = document.querySelector('.search-button');
-    if (searchButton) {
-        searchButton.addEventListener('click', handleSearch);
-    }
-
-    // Status filter buttons
-    document.querySelectorAll('.status-filter').forEach(button => {
-        button.addEventListener('click', () => {
-            const status = button.getAttribute('data-status');
-            filterState.addStatusFilter(status);
-        });
-    });
-
-    // Column filter buttons
-    document.querySelectorAll('.column-filter').forEach(button => {
-        button.addEventListener('click', () => {
-            const column = parseInt(button.getAttribute('data-column'));
-            filterState.setColumnFilter(column);
-        });
-    });
-
-    // Reset filters button
-    const resetFiltersBtn = document.getElementById('resetFilters');
-    if (resetFiltersBtn) {
-        resetFiltersBtn.addEventListener('click', () => {
-            filterState.resetFilters();
-        });
-    }
-
-    // Active filters container - delegate event handling
-    const activeFiltersContainer = document.getElementById('activeFilters');
-    if (activeFiltersContainer) {
-        activeFiltersContainer.addEventListener('click', event => {
-            const target = event.target;
-            if (target.classList.contains('remove-filter')) {
-                const filterType = target.getAttribute('data-filter-type');
-                const filterValue = target.getAttribute('data-filter-value');
-
-                if (filterType === 'status' && filterValue) {
-                    filterState.addStatusFilter(filterValue); // Toggle off
-                } else if (filterType === 'column') {
-                    filterState.setColumnFilter(filterState.columnFilter); // Toggle off
-                } else if (filterType === 'search') {
-                    filterState.searchTerm = '';
-                    const searchInput = document.getElementById('searchInput');
-                    if (searchInput) searchInput.value = '';
-                    filterState.applyFilters();
-                    filterState.updateFilterUI();
-                }
-            }
-        });
-    }
-
-    // Modal events
-    const addAssetModal = document.getElementById('addAssetModal');
-    if (addAssetModal) {
-        addAssetModal.addEventListener('show.bs.modal', loadRoomsForModal);
-        addAssetModal.addEventListener('hidden.bs.modal', clearAddAssetForm);
-    }
-
-    // Save asset button
-    const saveBtn = document.getElementById('saveNewAssetBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveNewAsset);
-    }
-
-    // Propose asset button (Auditor role)
-    const proposeBtn = document.getElementById('proposeNewAssetBtn');
-    if (proposeBtn) {
-        proposeBtn.addEventListener('click', proposeNewAsset);
+    } catch (err) {
+        console.error(err);
+        alert('Server error');
     }
 }
 
-// Initialize everything when the DOM is loaded
+async function deleteAssignment(assignmentId) {
+    if (!confirm('Are you sure you want to delete this assignment? This cannot be undone.')) return;
+
+    try {
+        const res = await fetch(`/api/assignments/${assignmentId}/delete`, {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            showMessage('Assignment Deleted', 'success');
+            loadAssignments();
+        } else {
+            showMessage(data.message || 'Failed to Delete', 'danger');
+        }
+
+    } catch (err) {
+        console.error(err);
+        showMessage('Server error', 'danger');
+    }
+}
+
+function handleAssignmentSearch() {
+    const input = document.getElementById('assignmentSearchInput');
+    const filterColumn = document.getElementById('assignmentFilterColumn').value;
+
+    const term = input?.value.toLowerCase() || '';
+
+    document.querySelectorAll('#assignmentsTableBody tr').forEach(row => {
+        let matches = false;
+
+        if (filterColumn !== '') {
+            const cell = row.querySelector(`td:nth-child(${parseInt(filterColumn) + 1})`);
+            const text = cell?.textContent.toLowerCase() || '';
+            matches = text.includes(term);
+        } else {
+            const text = row.textContent.toLowerCase();
+            matches = text.includes(term);
+        }
+
+        row.style.display = matches ? '' : 'none';
+    });
+}
+
+    /*HAMBUGER MENU*/
+
 document.addEventListener('DOMContentLoaded', () => {
-    setupEventListeners();
+    setupEvents();
     loadAssets();
+
+    const menuBtn = document.getElementById('menuBtn');
+    const menu = document.getElementById('menu');
+
+    if (!menuBtn || !menu) {
+        console.error("Menu not found");
+        return;
+    }
+
+    menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('d-none');
+    });
+
+    menu.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    document.addEventListener('click', () => {
+        menu.classList.add('d-none');
+    });
 });
+
+
+function setupEvents() {
+    document.querySelectorAll('.status-filter').forEach(btn => {
+        btn.addEventListener('click', () =>
+            filterState.addStatusFilter(btn.dataset.status)
+        );
+    });
+    document.querySelectorAll('.column-filter').forEach(btn => {
+        btn.addEventListener('click', () =>
+            filterState.setColumnFilter(parseInt(btn.dataset.column))
+        );
+    });
+
+    const search = document.getElementById('searchInput');
+    if (search) search.addEventListener('input', handleSearch);
+}
