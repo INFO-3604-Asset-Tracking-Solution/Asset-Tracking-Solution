@@ -4,12 +4,7 @@ from nanoid import generate
 from sqlalchemy import Enum
 
 def generate_assignment_id():
-    from sqlalchemy import text
-    from App.database import db
-    with db.engine.connect() as conn:
-        result = conn.execute(text("SELECT COUNT(*) FROM asset_assignment"))
-        count = result.scalar()
-    return str(count + 1).zfill(4)
+    return generate(size=10)
 
 class AssetAssignment(db.Model):
     __tablename__ = "asset_assignment"
