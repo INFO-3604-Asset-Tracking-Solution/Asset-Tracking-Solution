@@ -15,3 +15,7 @@ def init():
 @index_views.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status':'healthy'})
+
+@index_views.route('/sw.js', methods=['GET'])
+def sw():
+    return send_from_directory('static', 'sw.js')

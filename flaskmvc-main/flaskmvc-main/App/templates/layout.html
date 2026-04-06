@@ -12,6 +12,7 @@
     <!-- Global Application CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <!-- Page-specific CSS -->
     {% block page_css %}{% endblock %}
     
@@ -84,7 +85,7 @@
             }
         });
     </script>
-    
+    <script src="{{ url_for('static', filename='service-worker-registration.js') }}?v=1.3"></script>
     <!-- Page-specific JavaScript -->
     {% block scripts %}{% endblock %}
 </body>
