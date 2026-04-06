@@ -3,12 +3,7 @@ from sqlalchemy import Numeric
 from nanoid import generate
 
 def generate_asset_id():
-    from sqlalchemy import text
-    from App.database import db
-    with db.engine.connect() as conn:
-        result = conn.execute(text("SELECT COUNT(*) FROM asset"))
-        count = result.scalar()
-    return f"A-{str(count + 1).zfill(6)}"
+    return f"A-{generate(size=8)}"
 
 class Asset(db.Model):
 
