@@ -13,38 +13,54 @@
 <div class="card p-4">
 
     <label>Assignment ID</label>
-    <input id="assignmentId" class="form-control mb-2" value="{{ assignment.assignment_id }}" disabled>
+    <input id="assignmentId" 
+            class="form-control mb-2" 
+            value="{{ assignment.assignment_id }}" disabled>
 
     <label>Asset ID</label>
-    <input id="assetId" class="form-control mb-2" value="{{ assignment.asset_id }}" disabled>
+    <input id="assetId" 
+            class="form-control mb-2" 
+            value="{{ assignment.asset_id }}">
+            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
+
 
     <label>Employee ID</label>
-    <input id="employeeId" class="form-control mb-2" value="{{ assignment.employee_id }}" disabled>
+    <input id="employeeId" 
+            class="form-control mb-2" 
+            value="{{ assignment.employee_id }}">
+            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
 
     <label>Room ID</label>
-    <input id="roomId" class="form-control mb-2" value="{{ assignment.room_id }}" disabled>
+    <input id="roomId" 
+            class="form-control mb-2" 
+            value="{{ assignment.room_id }}">
+            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
 
     <label>Condition</label>
-    <select id="condition" class="form-select mb-2">
+    <select id="condition" 
+            class="form-select mb-2">
+            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
         <option value="Good" {% if assignment.condition == 'Good' %}selected{% endif %}>Good</option>
         <option value="Needs Repair" {% if assignment.condition == 'Needs Repair' %}selected{% endif %}>Needs Repair</option>
         <option value="Beyond Repair" {% if assignment.condition == 'Beyond Repair' %}selected{% endif %}>Beyond Repair</option>
     </select>
 
     <label>Status</label>
-    <select id="status" class="form-select mb-2">
-        <option value="Active" {% if assignment.status == 'Active' %}selected{% endif %}>Active</option>
-        <option value="Completed" {% if assignment.status == 'Completed' %}selected{% endif %}>Completed</option>
-        <option value="Overdue" {% if assignment.status == 'Overdue' %}selected{% endif %}>Overdue</option>
-    </select>
+    <input class="form-control mb-2"
+       value="{{ 'Completed' if assignment.return_date else 'Active' }}"
+       disabled>
 
     <label>Return Date</label>
-    <input type="date" id="returnDate" class="form-control mb-3"
-           value="{{ assignment.return_date.strftime('%Y-%m-%d') if assignment.return_date else '' }}">
+    <input type="date" 
+            id="returnDate" 
+            class="form-control mb-3"
+            value="{{ assignment.return_date.strftime('%Y-%m-%d') if assignment.return_date else '' }}"
+            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
 
-    <div class="d-flex gap-2">
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
         <button class="btn btn-secondary" onclick="history.back()">Cancel</button>
-        <button class="btn btn-success" onclick="updateAssignment()">Update</button>
+        <button class="btn btn-primary" onclick="updateAssignment()">Update</button>
     </div>
 
 </div>
