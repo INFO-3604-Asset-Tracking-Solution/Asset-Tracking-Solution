@@ -3,21 +3,26 @@ from App.controllers.asset import get_asset
 from App.database import db
 from datetime import datetime
 
-def create_asset_assignment(asset_id, employee_id, room_id, condition):
-    asset = Asset.query.get(asset_id)
-    employee = Employee.query.get(employee_id)
-    room = Room.query.get(room_id)
+def create_asset_assignment(asset_id, employee_id, room_id, condition, assign_date=None):
+    asset = Asset.query.filter_by(asset_id=asset_id).first()
+    employee = Employee.query.get(int(str(employee_id).lstrip('0') or '0'))
+    room = Room.query.get(int(str(room_id).lstrip('0') or '0'))
 
     if not asset or not employee or not room:
+        print(f"Lookup failed: asset={asset}, employee={employee}, room={room}")
         return None
+
+    if assign_date:
+        assign_date = datetime.fromisoformat(assign_date)
+    else:
+        assign_date = datetime.utcnow()
 
     assignment = AssetAssignment(
         asset_id=asset_id,
-        employee_id=employee_id,    
-        room_id = room_id,
+        employee_id= int(str(employee_id).lstrip('0') or '0'),    
+        room_id = int(str(room_id).lstrip('0') or '0'),
         condition = condition,
-        assignment_date= datetime.utcnow(),
-        return_date = None
+        assignment_date= assign_date,
     )
     db.session.add(assignment)
     db.session.commit()
@@ -32,7 +37,6 @@ def end_assignment(assignment_id):
         return None
 
     assignment.return_date = datetime.utcnow()
-    assignment.status = 'returned'
 
     db.session.commit()
 
@@ -56,6 +60,7 @@ def get_current_asset_assignment(asset_id):
     return AssetAssignment.query.filter_by(asset_id = asset_id, return_date = None).first()
 
 def get_assignments_by_employee(employee_id):
+    employee_id = int(str(employee_id).lstrip('0') or '0')
     return AssetAssignment.query.filter_by(employee_id = employee_id).all()
 
 def get_assignments_by_asset(asset_id):
@@ -78,25 +83,40 @@ def get_asset_list_from_assignments_for_room_json(room_id):
     asset_list = [get_asset(asset_id).get_json() for asset_id in assets]
     return asset_list
 
-def update_asset_assignment(assignment_id, asset_id=None, employee_id=None, assignment_date=None, return_date=None, condition=None):
-    assignment = get_asset_assignment_by_id(assignment_id)
-    if assignment:
-        if asset_id:
-            assignment.asset_id = asset_id
-        if employee_id:
-            assignment.employee_id = employee_id
-        if assignment_date:
-            assignment.assignment_date = assignment_date
-        if return_date is not None:
-            assignment.return_date = return_date
-            assignment.status = 'returned'
-        if condition:
-            assignment.condition = condition
-        
-        db.session.commit()
-        return assignment
+def update_asset_assignment(
+    assignment_id, 
+    asset_id=None, 
+    employee_id=None, 
+    room_id=None,
+    assignment_date=None, 
+    return_date=None, 
+    condition=None, 
+):
 
-    return None
+    assignment = get_asset_assignment_by_id(assignment_id)
+    if not assignment:
+        return None
+
+    if asset_id:
+        assignment.asset_id = asset_id
+        
+    if employee_id:
+        assignment.employee_id = int(str(employee_id).lstrip('0') or '0')
+
+    if room_id:
+        assignment.room_id = int(str(room_id).lstrip('0') or '0')
+
+    if assignment_date:
+        if isinstance(assignment_date, str):
+            assignment.assignment_date = datetime.fromisoformat(assignment_date)
+        else:
+            assignment.assignment_date = assignment_date
+    
+    if condition:
+        assignment.condition = condition
+        
+    db.session.commit()
+    return assignment
 
 def delete_asset_assignment(assignment_id):
     assignment = get_asset_assignment_by_id(assignment_id)

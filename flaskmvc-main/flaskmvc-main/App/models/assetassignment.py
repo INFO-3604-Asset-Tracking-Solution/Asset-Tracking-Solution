@@ -3,19 +3,24 @@ from datetime import datetime
 from nanoid import generate
 from sqlalchemy import Enum
 
-def generate_short_id():
-    return generate(size=8)
+def generate_assignment_id():
+    from sqlalchemy import text
+    from App.database import db
+    with db.engine.connect() as conn:
+        result = conn.execute(text("SELECT COUNT(*) FROM asset_assignment"))
+        count = result.scalar()
+    return str(count + 1).zfill(4)
 
 class AssetAssignment(db.Model):
     __tablename__ = "asset_assignment"
 
-    assignment_id = db.Column(db.String(30), primary_key=True, default=generate_short_id)
+    assignment_id = db.Column(db.String(30), primary_key=True, default=generate_assignment_id)
     asset_id = db.Column(db.String(50), db.ForeignKey('asset.asset_id'), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.employee_id'), nullable=False)
     room_id = db.Column(db.Integer, db.ForeignKey('room.room_id'), nullable=False)
     assignment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     return_date = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.Enum('in_use', 'returned', name='assignment_status'), default='in_use', nullable=False)
+    status = db.Column(db.Enum('Active', 'Completed', name='assignment_status'), default='Active', nullable=False)
     condition = db.Column(
         Enum('Good', 'Needs Repair', 'Beyond Repair', name='condition_enum'),
         nullable=False
@@ -38,12 +43,11 @@ class AssetAssignment(db.Model):
         return {
             'assignment_id': self.assignment_id,
             'asset_id': self.asset_id,
-            'employee_id': self.employee_id,
-            'room_id': self.room_id,
+            'employee_id': str(self.employee_id).zfill(8) if self.employee_id else '',
+            'room_id': str(self.room_id).zfill(4) if self.room_id else '',
             'assignment_date': self.assignment_date,
             'return_date': self.return_date,
             'condition': self.condition,
-            'status': self.status
         }
 
     def __repr__(self):
