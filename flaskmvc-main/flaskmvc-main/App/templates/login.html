@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
-    
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <style>
         .header-bar {
             background: var(--primary-blue);
@@ -149,6 +149,7 @@
             errorModal.show();
         }
         </script>
+        <script src="{{ url_for('static', filename='service-worker-registration.js') }}?v=1.3"></script>
 </body>
 
 <!-- error message pop up -->
