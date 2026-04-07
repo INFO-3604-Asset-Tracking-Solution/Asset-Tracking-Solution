@@ -29,18 +29,19 @@ def audit_list():
 @role_required(['Administrator', 'Manager', 'Auditor'])
 def audit_detail(audit_id):
     audit = get_audit_by_id(audit_id)
-    check_events = get_all_check_events_by_audit(audit_id)
-    return render_template('audit_detail.html', audit=audit, check_events=check_events)
+    report = generate_final_report(audit_id)
+    return render_template('audit_detail.html', audit=audit, report=report)
 
 
 @audit_views.route('/start-audit', methods=['GET'])
 @jwt_required()
 def start_audit():
-    if get_active_audit() is not None:
-        return redirect(url_for('audit_views.audit_list'))
+    active_audit = get_active_audit()
+    if active_audit is not None:
+        return redirect(url_for('audit_views.audit_detail', audit_id=active_audit.audit_id))
+    
     audit = create_audit(current_user.user_id)
-    audits = get_all_audits_json()
-    return render_template('audit_list.html', audits=audits), 200
+    return redirect(url_for('audit_views.audit_detail', audit_id=audit.audit_id))
 
 
 @audit_views.route('/end-audit', methods=['GET'])
@@ -96,7 +97,7 @@ def create_check_event_api():
                 'message': 'No request data provided'
             }), 400
 
-        required_fields = ['asset_id', 'found_room_id', 'condition_id']
+        required_fields = ['asset_id', 'found_room_id', 'condition']
         missing_fields = [field for field in required_fields if field not in data or data[field] in [None, '']]
 
         if missing_fields:
@@ -107,7 +108,7 @@ def create_check_event_api():
 
         asset_id = data['asset_id']
         found_room_id = data['found_room_id']
-        condition_id = data['condition_id']
+        condition = data['condition']
         user_id = current_user.user_id
 
         audit_id = data.get('audit_id')
@@ -136,7 +137,7 @@ def create_check_event_api():
             asset_id=asset_id,
             user_id=user_id,
             found_room_id=found_room_id,
-            condition_id=condition_id,
+            condition=condition,
             status=status
         )
 

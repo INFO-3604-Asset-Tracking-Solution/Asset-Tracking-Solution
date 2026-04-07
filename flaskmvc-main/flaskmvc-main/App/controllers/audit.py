@@ -1,4 +1,4 @@
-from App.models import Audit, CheckEvent, MissingDevice
+from App.models import Audit, CheckEvent, MissingDevice, AssetAssignment, Asset, Room
 from App.database import db
 from datetime import datetime
 
@@ -44,7 +44,7 @@ def end_audit():
     return audit
 
 def get_all_audits():
-    return Audit.query.all()
+    return Audit.query.order_by(Audit.start_date.desc()).all()
 
 def get_all_audits_json():
     audits = get_all_audits()
@@ -77,48 +77,150 @@ def get_audit_status():
         return 'NO_ACTIVE_AUDIT'
     return audit.get_json()['status']
 
-def generate_interim_report(audit_id):
-    audit = get_audit_by_id(audit_id)
-    if not audit or audit.status != 'IN_PROGRESS':
-        return None
-    # Returns the four cases: 1) Asset is in the correct room, 2) Asset is in the wrong room, 3) Asset is missing, 4) Asset is in different condition
-    
-    # 1) Asset is in the correct room
-    correct_room = CheckEvent.query.filter_by(audit_id=audit_id, status='correct room').all()
-    # 2) Asset is in the wrong room
-    wrong_room = CheckEvent.query.filter_by(audit_id=audit_id, status='wrong room').all()
-    # 3) Asset is missing
-    missing = CheckEvent.query.filter_by(audit_id=audit_id, status='missing').all()
-    # 4) Asset is in different condition
-    different_condition = CheckEvent.query.filter_by(audit_id=audit_id, status='different condition').all()
-    
-    return {
-        'correct_room': [check_event.get_json() for check_event in correct_room],
-        'wrong_room': [check_event.get_json() for check_event in wrong_room],
-        'missing': [check_event.get_json() for check_event in missing],
-        'different_condition': [check_event.get_json() for check_event in different_condition]
-    }
-
-def generate_final_report(audit_id):
+def generate_audit_report(audit_id):
     audit = get_audit_by_id(audit_id)
     if not audit:
         return None
-    # Returns the four cases: 1) Asset is in the correct room, 2) Asset is in the wrong room, 3) Asset is missing, 4) Asset is in different condition
+        
+    # Get all check events for this audit
+    check_events = CheckEvent.query.filter_by(audit_id=audit_id).all()
+    # Get all missing records for this audit
+    missing_records = MissingDevice.query.filter_by(audit_id=audit_id).all()
     
-    # 1) Asset is in the correct room
-    correct_room = CheckEvent.query.filter_by(audit_id=audit_id, status='correct room').all()
-    # 2) Asset is in the wrong room
-    wrong_room = CheckEvent.query.filter_by(audit_id=audit_id, status='wrong room').all()
-    # 3) Asset is missing
-    missing = CheckEvent.query.filter_by(audit_id=audit_id, status='missing').all()
-    # 4) Asset is in different condition
-    different_condition = CheckEvent.query.filter_by(audit_id=audit_id, status='different condition').all()
+    # We define global scope as all currently active assignments. 
+    # (If the audit is old, active assignments might have changed, but we assume
+    # we want the assignments active at the time of the query or at the start. 
+    # For simplicity, we just use the current active ones + anything already linked to the audit.)
     
-    return {
-        'correct_room': [check_event.get_json() for check_event in correct_room],
-        'wrong_room': [check_event.get_json() for check_event in wrong_room],
-        'missing': [check_event.get_json() for check_event in missing],
-        'different_condition': [check_event.get_json() for check_event in different_condition]
+    active_assignments = AssetAssignment.query.filter_by(return_date=None).all()
+    
+    report = {
+        'audit_info': audit.get_json(),
+        'expected_total': len(active_assignments),
+        'found_correct': [],
+        'relocated': [],
+        'condition_discrepancy': [],
+        'missing': [],
+        'unscanned': [],
+        'unexpected': [],
+        'room_breakdown': []
     }
+    
+    rooms_data = {}
+    def get_room_data(r_id):
+        if r_id not in rooms_data:
+            room = Room.query.get(r_id)
+            rooms_data[r_id] = {
+                'room_id': r_id,
+                'room_name': room.room_name if room else f"Room {r_id}",
+                'expected_count': 0,
+                'found_correct_count': 0,
+                'relocated_out_count': 0,
+                'missing_count': 0,
+                'unexpected_here_count': 0,
+                'unscanned_count': 0
+            }
+        return rooms_data[r_id]
+    
+    # Map CheckEvents by asset_id
+    checks_by_asset = {ce.asset_id: ce for ce in check_events}
+    
+    # Track which assignments have been processed as explicitly missing
+    missing_assignment_ids = [m.assignment_id for m in missing_records if not m.found_relocation_id]
+    
+    # 1. Process active assignments to find discrepancies
+    for assignment in active_assignments:
+        asset_id = assignment.asset_id
+        r_data = get_room_data(assignment.room_id)
+        r_data['expected_count'] += 1
+        
+        # Pull asset details for rich JSON
+        asset = Asset.query.get(asset_id)
+        asset_desc = asset.description if asset else "Unknown"
+        
+        if asset_id in checks_by_asset:
+            # Asset was checked/scanned!
+            ce = checks_by_asset[asset_id]
+        
+            # Add asset details to event payload early so we reuse it
+            enrich_event = ce.get_json()
+            enrich_event['asset_description'] = asset_desc
+            enrich_event['expected_room'] = assignment.room_id
+            enrich_event['expected_condition'] = assignment.condition
+            
+            is_correct_room = (int(ce.found_room_id) == int(assignment.room_id))
+            is_correct_condition = (ce.condition == assignment.condition)
+            
+            if is_correct_room and is_correct_condition:
+                report['found_correct'].append(enrich_event)
+                
+            if not is_correct_room:
+                report['relocated'].append(enrich_event)
+                
+            if not is_correct_condition:
+                report['condition_discrepancy'].append(enrich_event)
+                
+            # Update room statistics
+            if is_correct_room:
+                r_data['found_correct_count'] += 1
+            else:
+                r_data['relocated_out_count'] += 1
+                found_r_data = get_room_data(int(ce.found_room_id))
+                found_r_data['unexpected_here_count'] += 1
+                
+            # Remove from map so we know what's left
+            del checks_by_asset[asset_id]
+        
+        elif assignment.assignment_id not in missing_assignment_ids:
+            # It's not scanned and not explicitly marked missing yet
+            r_data['unscanned_count'] += 1
+            report['unscanned'].append({
+                'asset_id': assignment.asset_id,
+                'asset_description': asset_desc,
+                'expected_room': assignment.room_id,
+                'status': 'Pending Verification'
+            })
+        
+    # 2. Process MissingDevices explicitly marked
+    missing_assignment_ids = [m.assignment_id for m in missing_records if not m.found_relocation_id]
+    
+    for missing_record in missing_records:
+        if not missing_record.found_relocation_id:
+            assignment = AssetAssignment.query.get(missing_record.assignment_id)
+            if assignment:
+                # Update room missing stat
+                r_data = get_room_data(assignment.room_id)
+                r_data['missing_count'] += 1
+                
+                asset = Asset.query.get(assignment.asset_id)
+                report['missing'].append({
+                    'asset_id': assignment.asset_id,
+                    'asset_description': asset.description if asset else 'Unknown',
+                    'expected_room': assignment.room_id,
+                    'missing_since': missing_record.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                })
+            
+    # 3. Process unexpected assets (scanned, but had no active assignment)
+    for asset_id, ce in checks_by_asset.items():
+        # Update room unexpected stat for unassigned assets
+        found_rid = int(ce.found_room_id)
+        found_r_data = get_room_data(found_rid)
+        found_r_data['unexpected_here_count'] += 1
+        
+        asset = Asset.query.get(asset_id)
+        enrich_event = ce.get_json()
+        enrich_event['asset_description'] = asset.description if asset else "Unknown/Unassigned"
+        enrich_event['expected_room'] = 'None'
+        enrich_event['expected_condition'] = 'None'
+        report['unexpected'].append(enrich_event)
+        
+    report['room_breakdown'] = list(rooms_data.values())
+    return report
+
+def generate_interim_report(audit_id):
+    return generate_audit_report(audit_id)
+
+def generate_final_report(audit_id):
+    return generate_audit_report(audit_id)
 
     
