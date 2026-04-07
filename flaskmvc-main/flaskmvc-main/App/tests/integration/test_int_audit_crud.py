@@ -59,10 +59,10 @@ class AuditCRUDIntegrationTests(unittest.TestCase):
         
         interim = generate_interim_report(audit.audit_id)
         self.assertIsNotNone(interim)
-        self.assertIn('correct_room', interim)
-        self.assertIn('wrong_room', interim)
+        self.assertIn('found_correct', interim)
+        self.assertIn('relocated', interim)
         self.assertIn('missing', interim)
-        self.assertIn('different_condition', interim)
+        self.assertIn('condition_discrepancy', interim)
         
         end_audit()
         
@@ -74,5 +74,5 @@ class AuditCRUDIntegrationTests(unittest.TestCase):
         final = generate_final_report(audit.audit_id)
         self.assertIsNotNone(final)
         self.assertIn('missing', final)
-        self.assertIn('correct_room', final)
+        self.assertIn('found_correct', final)
 
