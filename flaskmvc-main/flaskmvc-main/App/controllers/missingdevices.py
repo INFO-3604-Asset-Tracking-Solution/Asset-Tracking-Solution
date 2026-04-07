@@ -55,6 +55,7 @@ def mark_asset_lost(missing_id):
 
     # End current assignment
     assignment.return_date = datetime.utcnow()
+    assignment.status = "Completed"
 
     # Update asset status to Lost
     asset = Asset.query.get(assignment.asset_id)
