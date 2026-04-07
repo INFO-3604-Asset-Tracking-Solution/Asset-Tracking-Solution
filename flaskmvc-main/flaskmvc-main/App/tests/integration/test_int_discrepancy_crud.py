@@ -79,7 +79,7 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
         
         # Assignment should be ended
         assignment = AssetAssignment.query.get(self.assignment.assignment_id)
-        self.assertEqual(assignment.status, 'returned')
+        self.assertEqual(assignment.status, 'Completed')
         self.assertIsNotNone(assignment.return_date)
         
         # Asset status should be lost

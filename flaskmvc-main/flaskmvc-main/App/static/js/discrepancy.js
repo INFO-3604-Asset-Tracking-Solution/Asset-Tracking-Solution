@@ -18,22 +18,21 @@ document.addEventListener('DOMContentLoaded', () => {
             missing: (cells[0]?.textContent || '').trim(),
             relocated: (cells[1]?.textContent || '').trim(),
             reconciliation: (cells[2]?.textContent || '').trim(),
-            action: (cells[3]?.textContent || '').trim(),
             fullText: row.textContent.toLowerCase()
         };
     }
 
     function matchesFilter(data, filterValue) {
         if (filterValue === 'all') return true;
-        if (filterValue === 'missing') return data.missing !== '-';
-        if (filterValue === 'relocation') return data.relocated !== '-';
+        if (filterValue === 'missing') return data.missing && data.missing !== '-';
+        if (filterValue === 'relocation') return data.relocated && data.relocated !== '-';
         if (filterValue === 'reconciliation') return data.reconciliation !== '';
         return true;
     }
 
     function applyFilters() {
-        const searchTerm = searchInput.value.trim().toLowerCase();
-        const filterValue = filterSelect.value;
+        const searchTerm = (searchInput?.value || '').trim().toLowerCase();
+        const filterValue = filterSelect?.value || 'all';
 
         getRows().forEach(row => {
             const data = getRowData(row);
@@ -41,6 +40,64 @@ document.addEventListener('DOMContentLoaded', () => {
             const show = matchesSearch && matchesFilter(data, filterValue);
             row.style.display = show ? '' : 'none';
         });
+    }
+
+    function renderRows(rows) {
+        if (!rows || rows.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No discrepancies found.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tableBody.innerHTML = rows.map(row => {
+            // Supports either shape:
+            // 1) { missing_asset, relocated_asset, reconciliation }
+            // 2) { missing, relocated, reconciliation }
+            const missingAsset = row.missing_asset ?? row.missing ?? '-';
+            const relocatedAsset = row.relocated_asset ?? row.relocated ?? '-';
+            const reconciliation = row.reconciliation || 'Pending';
+
+            return `
+                <tr data-asset-id="${row.asset_id || ''}">
+                    <td>${missingAsset}</td>
+                    <td>${relocatedAsset}</td>
+                    <td>${reconciliation}</td>
+                    <td>
+                        <button
+                            class="btn btn-sm btn-outline-secondary notify-btn"
+                            data-missing-id="${row.missing_id || ''}"
+                            data-relocation-id="${row.relocation_id || ''}"
+                            type="button"
+                        >
+                            Notify
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadDiscrepancies() {
+        try {
+            const response = await fetch('/api/discrepancies', { method: 'GET' });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch discrepancies (${response.status})`);
+            }
+
+            const rows = await response.json();
+            renderRows(rows);
+            applyFilters();
+        } catch (error) {
+            console.error('Error loading discrepancy rows:', error);
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-danger">Unable to load discrepancy data.</td>
+                </tr>
+            `;
+        }
     }
 
     if (searchInput) {
@@ -51,14 +108,14 @@ document.addEventListener('DOMContentLoaded', () => {
         filterSelect.addEventListener('change', applyFilters);
     }
 
-    if (viewMissingBtn) {
+    if (viewMissingBtn && filterSelect) {
         viewMissingBtn.addEventListener('click', () => {
             filterSelect.value = 'missing';
             applyFilters();
         });
     }
 
-    if (viewRelocationBtn) {
+    if (viewRelocationBtn && filterSelect) {
         viewRelocationBtn.addEventListener('click', () => {
             filterSelect.value = 'relocation';
             applyFilters();
@@ -72,7 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = notifyBtn.closest('tr');
         const data = getRowData(row);
 
-        let payload = {
+        const payload = {
+            asset_id: row.dataset.assetId || null,
+            missing_id: notifyBtn.dataset.missingId || null,
+            relocation_id: notifyBtn.dataset.relocationId || null,
             missing_asset: data.missing,
             relocated_asset: data.relocated,
             reconciliation: data.reconciliation
@@ -81,9 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/notify-discrepancy', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
@@ -95,44 +153,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Notification error:', error);
-            alert('Notification route is not ready yet.');
+            alert('Failed to send notification.');
         }
     });
 
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
-            const visibleRows = getRows().filter(row => row.style.display !== 'none');
-
-            const csvRows = [
-                ['Missing Assets', 'Relocated Assets', 'Reconciliation', 'Action']
-            ];
-
-            visibleRows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                csvRows.push([
-                    (cells[0]?.textContent || '').trim(),
-                    (cells[1]?.textContent || '').trim(),
-                    (cells[2]?.textContent || '').trim(),
-                    (cells[3]?.textContent || '').trim()
-                ]);
-            });
-
-            const csvContent = csvRows.map(row =>
-                row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')
-            ).join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'discrepancy_report.csv';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            window.location.href = '/api/discrepancies/download';
         });
     }
 
-    applyFilters();
+    loadDiscrepancies();
 });
