@@ -459,6 +459,7 @@ const AuditApp = (function () {
     // Private state
     const state = {
         currentAuditMethod: 'manual',
+        activeAuditId: null,
         currentBuilding: null,
         currentFloor: null,
         currentRoom: null,
@@ -466,6 +467,49 @@ const AuditApp = (function () {
         scannedAssets: [],
         isRoomAuditActive: false
     };
+
+    /**
+ * Ensure there is an active backend audit session before room-level scanning begins.
+ * If no active audit exists, this creates one via /api/start-audit.
+ * @returns {Promise<string|null>} The active audit ID if available.
+ */
+async function ensureActiveAuditSession() {
+    if (state.activeAuditId) {
+        return state.activeAuditId;
+    }
+
+    try {
+        const statusResponse = await fetch('/get-audit-status');
+        if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            if (statusData && statusData.status && statusData.status !== 'NO_ACTIVE_AUDIT') {
+                // We know an audit exists, but not its ID. Create/start endpoint returns active one.
+                const startResponse = await fetch('/api/start-audit', { method: 'POST' });
+                if (!startResponse.ok) {
+                    throw new Error('Failed to resolve active audit session');
+                }
+                const activeAudit = await startResponse.json();
+                state.activeAuditId = activeAudit.audit_id || null;
+                return state.activeAuditId;
+            }
+        }
+
+        // No active audit from status endpoint, so start one now.
+        const createResponse = await fetch('/api/start-audit', { method: 'POST' });
+        if (!createResponse.ok) {
+            const createError = await createResponse.json();
+            throw new Error(createError.message || 'Failed to start audit session');
+        }
+
+        const audit = await createResponse.json();
+        state.activeAuditId = audit.audit_id || null;
+        return state.activeAuditId;
+    } catch (error) {
+        console.error('Unable to initialize active audit session:', error);
+        UI.showMessage(`Could not start audit session: ${error.message}`, 'danger');
+        return null;
+    }
+}
 
     // Barcode scanning state
     const scannerState = {
@@ -839,7 +883,7 @@ const AuditApp = (function () {
     /**
      * Start the room audit process
      */
-    function startRoomAudit() {
+    async function startRoomAudit() {
         if (!state.currentRoom || state.currentRoom === 'Select Room') {
             UI.showMessage('Please select a room first', 'warning');
             return;
@@ -847,6 +891,11 @@ const AuditApp = (function () {
 
         // If already active, do nothing
         if (state.isRoomAuditActive) return;
+
+        const activeAuditId = await ensureActiveAuditSession();
+        if (!activeAuditId) {
+            return;
+        }
 
         state.isRoomAuditActive = true;
 
@@ -1192,7 +1241,8 @@ const AuditApp = (function () {
                 body: JSON.stringify({
                     asset_id: assetId,
                     found_room_id: foundRoomId,
-                    condition: condition // 'Good', 'Needs Repair', or 'Beyond Repair'
+                    condition: condition, // 'Good', 'Needs Repair', or 'Beyond Repair'
+                    audit_id: state.activeAuditId
                 })
             });
 
@@ -1373,7 +1423,8 @@ const AuditApp = (function () {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    assetIds: missingAssetIds
+                    assetIds: missingAssetIds,
+                    audit_id: state.activeAuditId
                 })
             });
 
