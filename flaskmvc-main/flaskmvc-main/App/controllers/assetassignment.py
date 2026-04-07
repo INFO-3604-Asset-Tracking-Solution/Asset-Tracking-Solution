@@ -79,8 +79,24 @@ def get_asset_list_from_assignments_for_room_json(room_id):
     assignments = get_assignments_for_room(room_id)
     if not assignments:
         return None
-    assets = [assignment.get_json()['asset_id'] for assignment in assignments]
-    asset_list = [get_asset(asset_id).get_json() for asset_id in assets]
+    
+    asset_list = []
+    for assignment in assignments:
+        asset = get_asset(assignment.asset_id)
+        if asset:
+            asset_data = asset.get_json()
+            # Add assignment-Specific info (Assignee and Room)
+            employee = assignment.employee
+            if employee:
+                asset_data['assignee_id'] = str(employee.employee_id).zfill(8)
+                asset_data['assignee_name'] = f"{employee.first_name} {employee.last_name}"
+            else:
+                asset_data['assignee_id'] = 'Unassigned'
+                asset_data['assignee_name'] = 'Unassigned'
+            
+            asset_data['room_id'] = str(assignment.room_id).zfill(4)
+            asset_list.append(asset_data)
+            
     return asset_list
 
 def update_asset_assignment(

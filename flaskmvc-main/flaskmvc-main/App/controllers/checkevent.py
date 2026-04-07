@@ -3,7 +3,7 @@ from App.database import db
 from App.controllers.assetassignment import get_current_asset_assignment
 
 
-def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id, status='found'):
+def create_check_event(audit_id, asset_id, user_id, found_room_id, condition, status='found'): 
     audit = Audit.query.get(audit_id)
     asset = Asset.query.get(asset_id)
 
@@ -18,7 +18,7 @@ def create_check_event(audit_id, asset_id, user_id, found_room_id, condition_id,
         asset_id=asset_id,
         user_id=user_id,
         found_room_id=found_room_id,
-        condition=condition_id,
+        condition=condition,
         status=status
     )
 

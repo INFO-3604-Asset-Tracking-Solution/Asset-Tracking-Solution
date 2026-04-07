@@ -134,38 +134,62 @@
                 <h5 class="card-title fw-semibold"><i class="bi bi-pie-chart text-primary"></i> Event Overview</h5>
                 <hr>
                 <div id="checkEventsContainer">
-                    {% set ns = namespace(found=0, missing=0, relocated=0, pending=0, lost=0) %}
-                    {% for event in check_events %}
-                        {% set status = event.status|string|upper %}
-                        {% if 'FOUND' in status or 'CORRECT' in status %} {% set ns.found = ns.found + 1 %}
-                        {% elif 'PENDING' in status %} {% set ns.pending = ns.pending + 1 %}
-                        {% elif 'RELOCATED' in status or 'WRONG ROOM' in status %} {% set ns.relocated = ns.relocated + 1 %}
-                        {% elif 'MISSING' in status %} {% set ns.missing = ns.missing + 1 %}
-                        {% elif 'LOST' in status %} {% set ns.lost = ns.lost + 1 %}
-                        {% endif %}
-                    {% endfor %}
+                    {% set found_count = report.found_correct|length %}
+                    {% set missing_count = report.missing|length %}
+                    {% set relocated_count = report.relocated|length %}
+                    {% set condition_count = report.condition_discrepancy|length %}
+                    {% set unexpected_count = report.unexpected|length %}
+                    {% set unscanned_count = report.unscanned|length %}
                     
-                    <div class="table-responsive">
-                        <table class="table table-sm text-center">
-                            <thead>
-                                <tr>
-                                    <th>FOUND</th>
-                                    <th>MISSING</th>
-                                    <th>RELOCATED</th>
-                                    <th>PENDING RELOC.</th>
-                                    <th>LOST</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><div class="fs-4 fw-bold">{{ ns.found }}</div>Found</td>
-                                    <td><div class="fs-4 fw-bold">{{ ns.missing }}</div>Missing</td>
-                                    <td><div class="fs-4 fw-bold">{{ ns.relocated }}</div>Relocated</td>
-                                    <td><div class="fs-4 fw-bold">{{ ns.pending }}</div>Pending</td>
-                                    <td><div class="fs-4 fw-bold">{{ ns.lost }}</div>Lost</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="row text-center g-3 mb-4">
+                        <div class="col">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="fs-4 fw-bold text-success">{{ found_count }}</div>
+                                <div class="text-muted small text-uppercase">Found & Correct</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="fs-4 fw-bold text-danger">{{ missing_count }}</div>
+                                <div class="text-muted small text-uppercase">Missing</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="fs-4 fw-bold text-primary">{{ relocated_count }}</div>
+                                <div class="text-muted small text-uppercase">Relocated</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="fs-4 fw-bold text-warning">{{ condition_count }}</div>
+                                <div class="text-muted small text-uppercase">Condition Issues</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="fs-4 fw-bold text-secondary">{{ unexpected_count }}</div>
+                                <div class="text-muted small text-uppercase">Unexpected</div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border rounded bg-light">
+                                <div class="fs-4 fw-bold text-info">{{ unscanned_count }}</div>
+                                <div class="text-muted small text-uppercase">Unscanned</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress mb-2" style="height: 25px;">
+                        {% set total_scanned = found_count + relocated_count + condition_count + unexpected_count %}
+                        {% set progress_pct = 0 %}
+                        {% if report.expected_total > 0 %}
+                            {% set progress_pct = ((total_scanned - unexpected_count) / report.expected_total * 100)|round %}
+                        {% endif %}
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_pct }}%;" aria-valuenow="{{ progress_pct }}" aria-valuemin="0" aria-valuemax="100">{{ progress_pct }}% Expected Assets Found</div>
+                    </div>
+                    <div class="text-muted small text-center mb-0">
+                        {{ total_scanned }} Total Assets Scanned | {{ report.expected_total }} Total Expected
                     </div>
                 </div>
             </div>
@@ -173,73 +197,272 @@
     </div>
 </div>
 
-<div class="card audit-summary-card mb-4">
-    <div class="card-body">
-        <h5 class="card-title fw-semibold mb-3"><i class="bi bi-geo-alt text-warning"></i> Pending Relocations</h5>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Asset ID</th>
-                        <th>Found In Room</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="pendingRelocationsTable">
-                    {% set pending_found = false %}
-                    {% for event in check_events %}
-                        {% if 'PENDING' in event.status|string|upper %}
-                            {% set pending_found = true %}
+<ul class="nav nav-tabs mb-4" id="auditTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab"><i class="bi bi-buildings text-success"></i> Room Progress</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="relocated-tab" data-bs-toggle="tab" data-bs-target="#relocated" type="button" role="tab"><i class="bi bi-geo-alt text-primary"></i> Relocated ({{ relocated_count }})</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="condition-tab" data-bs-toggle="tab" data-bs-target="#condition" type="button" role="tab"><i class="bi bi-wrench text-warning"></i> Condition Issues ({{ condition_count }})</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="unscanned-tab" data-bs-toggle="tab" data-bs-target="#unscanned" type="button" role="tab"><i class="bi bi-clock-history text-info"></i> Unscanned ({{ unscanned_count }})</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="missing-tab" data-bs-toggle="tab" data-bs-target="#missing" type="button" role="tab"><i class="bi bi-exclamation-triangle text-danger"></i> Missing ({{ missing_count }})</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="unexpected-tab" data-bs-toggle="tab" data-bs-target="#unexpected" type="button" role="tab"><i class="bi bi-question-circle text-secondary"></i> Unexpected ({{ unexpected_count }})</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="auditTabsContent">
+    <!-- Room Progress Tab -->
+    <div class="tab-pane fade show active" id="rooms" role="tabpanel">
+        <div class="card audit-summary-card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
                             <tr>
-                                <td><strong>{{ event.asset_id }}</strong></td>
-                                <td>Room {{ event.found_room_id }}</td>
-                                <td><button class="btn btn-sm btn-outline-primary" onclick="AuditDashboard.resolveRelocation('{{ event.check_id }}', '{{ event.found_room_id }}')">Resolve to Found</button></td>
+                                <th>Room</th>
+                                <th>Expected</th>
+                                <th style="width: 30%;">Progress</th>
+                                <th>Discrepancies</th>
+                                <th>Status</th>
                             </tr>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not pending_found %}
-                        <tr><td colspan="3" class="text-center text-muted">No pending relocations detected.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                        </thead>
+                        <tbody>
+                            {% for room in report.room_breakdown %}
+                                {% set correct_pct = ((room.found_correct_count / room.expected_count) * 100)|round if room.expected_count > 0 else 0 %}
+                                {% set relocated_pct = ((room.relocated_out_count / room.expected_count) * 100)|round if room.expected_count > 0 else 0 %}
+                                {% set total_processed = room.found_correct_count + room.relocated_out_count + room.missing_count %}
+                                {% set is_complete = total_processed >= room.expected_count and room.expected_count > 0 %}
+                                
+                                <tr>
+                                    <td>
+                                        <strong>{{ room.room_name }}</strong>
+                                    </td>
+                                    <td>{{ room.expected_count }} assigned</td>
+                                    <td>
+                                        <div class="d-flex justify-content-between small text-muted mb-1">
+                                            <span>{{ room.found_correct_count + room.relocated_out_count }} scanned / {{ room.expected_count }}</span>
+                                        </div>
+                                        <div class="progress" style="height: 10px; background-color: #e9ecef;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ correct_pct }}%;" title="{{ room.found_correct_count }} found correct"></div>
+                                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ relocated_pct }}%;" title="{{ room.relocated_out_count }} relocated out"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if room.unexpected_here_count > 0 %}
+                                            <span class="badge bg-danger rounded-pill">+{{ room.unexpected_here_count }} Unexpected</span><br>
+                                            <small class="text-muted">Found here, belongs elsewhere.</small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if room.expected_count == 0 and room.unexpected_here_count == 0 %}
+                                            <span class="badge bg-light text-dark border">N/A</span>
+                                        {% elif is_complete %}
+                                            <span class="badge bg-success">Complete</span>
+                                        {% elif total_processed > 0 %}
+                                            <span class="badge bg-info">In Progress</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No rooms to display.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-</div>
-
-<!-- Missing as Lost -->
-<div class="card audit-summary-card">
-    <div class="card-body">
-        <h5 class="card-title fw-semibold mb-3"><i class="bi bi-exclamation-triangle text-danger"></i> Missing / Lost Devices</h5>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Asset ID</th>
-                        <th>Date Reported</th>
-                        <th>Audit Status</th>
-                    </tr>
-                </thead>
-                <tbody id="missingTable">
-                    {% set missing_found = false %}
-                    {% for event in check_events %}
-                        {% if 'MISSING' in event.status|string|upper or 'LOST' in event.status|string|upper %}
-                            {% set missing_found = true %}
+    
+    <!-- Unscanned Tab -->
+    <div class="tab-pane fade" id="unscanned" role="tabpanel">
+        <div class="card audit-summary-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
                             <tr>
-                                <td>{{ event.asset_id }}</td>
-                                <td>{{ event.created_at.strftime('%Y-%m-%d %H:%M') if event.created_at else 'N/A' }}</td>
-                                <td>
-                                    <span class="status-badge {% if 'LOST' in event.status|string|upper %}status-lost{% else %}status-missing{% endif %}">
-                                        {{ event.status }}
-                                    </span>
-                                </td>
+                                <th>Asset</th>
+                                <th>Expected Room</th>
+                                <th>Status</th>
                             </tr>
-                        {% endif %}
-                    {% endfor %}
-                    {% if not missing_found %}
-                        <tr><td colspan="3" class="text-center text-muted">No missing devices for this audit.</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                        </thead>
+                        <tbody>
+                            {% for asset in report.unscanned %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ asset.asset_id }}</strong><br>
+                                        <small class="text-muted">{{ asset.asset_description }}</small>
+                                    </td>
+                                    <td>Room {{ asset.expected_room }}</td>
+                                    <td><span class="badge bg-secondary">Pending Scan</span></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-4">All active assets have been processed!</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Relocated Tab -->
+    <div class="tab-pane fade" id="relocated" role="tabpanel">
+        <div class="card audit-summary-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Asset</th>
+                                <th>Expected Room</th>
+                                <th>Found Room</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in report.relocated %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ asset.asset_id }}</strong><br>
+                                        <small class="text-muted">{{ asset.asset_description }}</small>
+                                    </td>
+                                    <td>Room {{ asset.expected_room }}</td>
+                                    <td class="text-primary fw-bold">Room {{ asset.found_room_id }}</td>
+                                    <td>
+                                        {% if asset.status == 'pending relocation' %}
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Action</span>
+                                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="AuditDashboard.resolveRelocation('{{ asset.check_id }}', '{{ asset.found_room_id }}')">Resolve</button>
+                                        {% else %}
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Resolved</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-4">No relocated assets detected.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Condition Issues Tab -->
+    <div class="tab-pane fade" id="condition" role="tabpanel">
+        <div class="card audit-summary-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Asset</th>
+                                <th>Found In Room</th>
+                                <th>Expected Condition</th>
+                                <th>Identified Condition</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in report.condition_discrepancy %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ asset.asset_id }}</strong><br>
+                                        <small class="text-muted">{{ asset.asset_description }}</small>
+                                    </td>
+                                    <td>Room {{ asset.found_room_id }}</td>
+                                    <td><span class="badge bg-secondary">{{ asset.expected_condition }}</span></td>
+                                    <td><span class="badge bg-warning text-dark fw-bold">{{ asset.condition }}</span></td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-4">No condition discrepancies detected.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Missing Tab -->
+    <div class="tab-pane fade" id="missing" role="tabpanel">
+        <div class="card audit-summary-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Asset</th>
+                                <th>Expected Room</th>
+                                <th>Date Marked Missing</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in report.missing %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ asset.asset_id }}</strong><br>
+                                        <small class="text-muted">{{ asset.asset_description }}</small>
+                                    </td>
+                                    <td>Room {{ asset.expected_room }}</td>
+                                    <td>{{ asset.missing_since }}</td>
+                                    <td>
+                                        <span class="badge {% if audit.status == 'COMPLETED' %}status-lost{% else %}status-missing{% endif %}">
+                                            {% if audit.status == 'COMPLETED' %}LOST{% else %}MISSING{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-4">No expected assets are missing.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unexpected Tab -->
+    <div class="tab-pane fade" id="unexpected" role="tabpanel">
+        <div class="card audit-summary-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Asset Number</th>
+                                <th>Scanned In Room</th>
+                                <th>Date Scanned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in report.unexpected %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ asset.asset_id }}</strong><br>
+                                        <small class="text-muted">{{ asset.asset_description }}</small>
+                                    </td>
+                                    <td>Room {{ asset.found_room_id }}</td>
+                                    <td>{{ asset.timestamp }}</td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-muted py-4">No unexpected assets scanned.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
