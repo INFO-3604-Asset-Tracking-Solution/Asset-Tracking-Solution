@@ -8,12 +8,10 @@ def create_relocation(check_id, found_room_id):
 
     if not check or not room:
         return None
+    if check.status != 'pending relocation':
+        return None
 
-    # Idempotency guard: if unresolved relocation exists for this check, reuse it
-    existing = Relocation.query.filter_by(
-        check_id=check_id,
-        new_check_event_id=None
-    ).first()
+    existing = Relocation.query.filter_by(check_id=check_id).first()
     if existing:
         return existing
 
@@ -26,6 +24,7 @@ def create_relocation(check_id, found_room_id):
     db.session.commit()
 
     return relocation
+
 
 def get_all_relocations():
     return Relocation.query.all()
@@ -42,39 +41,38 @@ def get_relocation_by_check(check_id):
 def update_relocation(relocation_id, item_relocated_room_id):
     """
     Updates the relocation with the new room id
-    and creates a new check event for the relocated item.
+    and creates a new check event for the relocated item
     """
     relocation = get_relocation(relocation_id)
     if not relocation:
         return None
 
-    # Already resolved: idempotent return
-    if relocation.new_check_event_id:
-        return relocation
-
     check = CheckEvent.query.get(relocation.check_id)
     room = Room.query.get(item_relocated_room_id)
-
-    if relocation.new_check_event_id:
-        return relocation
 
     if not check or not room:
         return None
 
-    new_check_row = CheckEvent(
-        audit_id=check.audit_id,
-        asset_id=check.asset_id,
-        user_id=check.user_id,
-        found_room_id=item_relocated_room_id,
-        condition=check.condition,
-        status='relocated'
-    )
+    new_check_row = CheckEvent.query.get(relocation.new_check_event_id) if relocation.new_check_event_id else None
+    if new_check_row:
+        new_check_row.found_room_id = item_relocated_room_id
+        new_check_row.condition = check.condition
+        new_check_row.status = 'relocated'
+    else:
+        new_check_row = CheckEvent(
+            audit_id=check.audit_id,
+            asset_id=check.asset_id,
+            user_id=check.user_id,
+            found_room_id=item_relocated_room_id,
+            condition=check.condition,
+            status='relocated'
+        )
+        db.session.add(new_check_row)
+        db.session.flush()  # get check_id for new row
+        relocation.new_check_event_id = new_check_row.check_id
 
     check.status = 'relocated'
 
-    db.session.add(new_check_row)
-    db.session.flush()  # get check_id for new row
-    relocation.new_check_event_id = new_check_row.check_id
     db.session.commit()
 
     return relocation
