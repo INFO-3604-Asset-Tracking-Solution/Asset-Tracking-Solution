@@ -18,3 +18,4 @@ Flask-Admin==1.6.1
 Flask-Login==0.6.3
 Flask-Mail==0.9.1
 nanoid==2.0.0
+locust
