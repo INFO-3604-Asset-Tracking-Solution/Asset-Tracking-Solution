@@ -2,6 +2,7 @@ import unittest
 from App.models import AssetAuthorization, Asset, Employee, AssetStatus
 from App.controllers.assetauthorization import propose_asset, get_pending_authorizations, approve_asset
 from App.database import db
+from App.controllers.user import create_user    
 
 class AuthorizationWorkflowIntegrationTests(unittest.TestCase):
     def setUp(self):
@@ -10,11 +11,9 @@ class AuthorizationWorkflowIntegrationTests(unittest.TestCase):
         db.session.query(Employee).delete()
         db.session.commit()
 
-        self.employee = Employee(first_name="Jane", last_name="Smith", email="jane@example.com")
-        db.session.add(self.employee)
+        self.auditor = create_user("jane@example.com", "Jane", "password", "Auditor")
         
-        self.admin = Employee(first_name="Admin", last_name="User", email="admin@example.com")
-        db.session.add(self.admin)
+        self.admin = create_user("admin@example.com", "Admin", "password", "Administrator")
         
         self.status = AssetStatus.query.filter_by(status_name="Available").first()
         if not self.status:
@@ -26,7 +25,7 @@ class AuthorizationWorkflowIntegrationTests(unittest.TestCase):
         # Step 1: User proposes a new asset
         proposal = propose_asset(
             description="MacBook Pro", 
-            proposing_user_id=self.employee.employee_id, 
+            proposing_user_id=self.auditor.user_id, 
             brand="Apple", 
             model="M2 Max", 
             serial_number="APP123456", 
@@ -45,7 +44,7 @@ class AuthorizationWorkflowIntegrationTests(unittest.TestCase):
         # Step 3: Admin approves the asset
         new_asset = approve_asset(
             authorization_id=proposal.authorization_id, 
-            authorized_by_user_id=self.admin.employee_id
+            authorized_by_user_id=self.admin.user_id
         )
         self.assertIsNotNone(new_asset)
         
@@ -56,4 +55,4 @@ class AuthorizationWorkflowIntegrationTests(unittest.TestCase):
         # Verify the proposal status was updated
         updated_proposal = AssetAuthorization.query.get(proposal.authorization_id)
         self.assertEqual(updated_proposal.authorization_status, "Approved")
-        self.assertEqual(updated_proposal.authorized_by, self.admin.employee_id)
+        self.assertEqual(updated_proposal.authorized_by, self.admin.user_id)

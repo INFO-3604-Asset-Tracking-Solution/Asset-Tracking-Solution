@@ -128,6 +128,13 @@ def update_asset_assignment(
             assignment.assignment_date = datetime.fromisoformat(assignment_date)
         else:
             assignment.assignment_date = assignment_date
+
+    if return_date:
+        if isinstance(return_date, str):
+            assignment.return_date = datetime.fromisoformat(return_date)
+        else:
+            assignment.return_date = return_date
+        assignment.status = "Completed"
     
     if condition:
         assignment.condition = condition

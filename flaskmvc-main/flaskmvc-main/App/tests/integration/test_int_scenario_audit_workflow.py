@@ -5,6 +5,7 @@ from App.controllers.audit import create_audit, end_audit
 from App.controllers.checkevent import create_check_event, check_event_location_discrepancy
 from App.controllers.relocation import create_relocation, update_relocation
 from App.database import db
+from App.controllers.user import create_user
 
 class AuditWorkflowIntegrationTests(unittest.TestCase):
     def setUp(self):
@@ -43,6 +44,7 @@ class AuditWorkflowIntegrationTests(unittest.TestCase):
         self.employee = Employee(first_name="John", last_name="Doe", email="john@example.com")
         db.session.add(self.employee)
         db.session.flush()
+        self.auditor = create_user("auditor@example.com", "Auditor", "password", "Auditor")  
 
         # Create two assets
         self.asset1 = Asset(description="Asset 1", status_id=self.status.status_id)
@@ -61,7 +63,7 @@ class AuditWorkflowIntegrationTests(unittest.TestCase):
 
     def test_end_to_end_audit_workflow(self):
         # Step 1: Start Audit
-        audit = create_audit(initiator_id=self.employee.employee_id)
+        audit = create_audit(initiator_id=self.auditor.user_id)
         self.assertIsNotNone(audit)
         self.assertEqual(audit.status, "IN_PROGRESS")
 
@@ -69,9 +71,9 @@ class AuditWorkflowIntegrationTests(unittest.TestCase):
         ce1 = create_check_event(
             audit_id=audit.audit_id, 
             asset_id=self.asset1.asset_id, 
-            user_id=self.employee.employee_id, 
+            user_id=self.auditor.user_id, 
             found_room_id=self.room1.room_id, 
-            condition_id="Good", 
+            condition="Good", 
             status="found"
         )
         self.assertIsNotNone(ce1)
@@ -81,9 +83,9 @@ class AuditWorkflowIntegrationTests(unittest.TestCase):
         ce2 = create_check_event(
             audit_id=audit.audit_id, 
             asset_id=self.asset2.asset_id, 
-            user_id=self.employee.employee_id, 
+            user_id=self.auditor.user_id, 
             found_room_id=self.room2.room_id, 
-            condition_id="Good", 
+            condition="Good", 
             status="pending relocation"
         )
         self.assertIsNotNone(ce2)

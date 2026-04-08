@@ -45,14 +45,14 @@ class AssetAssignmentIntegrationTests(unittest.TestCase):
         aa = create_asset_assignment(self.asset.asset_id, self.employee.employee_id, self.room.room_id, "Good")
         self.assertIsNotNone(aa)
         self.assertIsNotNone(aa.assignment_id)
-        self.assertEqual(aa.status, 'in_use')
+        self.assertEqual(aa.status, 'Active')
         
     def test_update_asset_assignment(self):
         aa = create_asset_assignment(self.asset.asset_id, self.employee.employee_id, self.room.room_id, "Good")
         
         updated = update_asset_assignment(aa.assignment_id, return_date=datetime.utcnow())
         self.assertIsNotNone(updated)
-        self.assertEqual(updated.status, 'returned')
+        self.assertEqual(updated.status, 'Completed')
         self.assertIsNotNone(updated.return_date)
 
     def test_delete_asset_assignment(self):

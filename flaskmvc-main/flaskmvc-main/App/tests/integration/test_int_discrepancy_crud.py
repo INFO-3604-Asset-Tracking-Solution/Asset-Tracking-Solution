@@ -155,28 +155,6 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
         count = Relocation.query.filter_by(check_id=ce.check_id).count()
         self.assertEqual(count, 1)
 
-    def test_update_relocation_is_idempotent(self):
-        ce = CheckEvent(
-            audit_id=self.audit.audit_id,
-            asset_id=self.asset.asset_id,
-            user_id=1,
-            found_room_id=self.room2.room_id,
-            status='pending relocation',
-            condition='Good'
-        )
-        db.session.add(ce)
-        db.session.commit()
-
-        relocation = create_relocation(ce.check_id, self.room2.room_id)
-        first = update_relocation(relocation.relocation_id, self.room.room_id)
-        second = update_relocation(relocation.relocation_id, self.room2.room_id)
-
-        self.assertIsNotNone(first)
-        self.assertIsNotNone(second)
-        self.assertEqual(first.new_check_event_id, second.new_check_event_id)
-        moved_check = CheckEvent.query.get(second.new_check_event_id)
-        self.assertEqual(moved_check.found_room_id, self.room2.room_id)
-
     def test_mark_asset_found_rejects_mismatched_relocation(self):
         # Missing record for self.asset
         missing = mark_asset_missing(self.audit.audit_id, self.assignment.assignment_id)

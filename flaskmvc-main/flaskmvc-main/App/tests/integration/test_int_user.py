@@ -1,7 +1,7 @@
 import unittest
 from App.controllers import (
     create_user, get_all_users_json,
-    get_user, update_user
+    get_user, update_user, login
 )
 from App.database import db
 from App.models import User
@@ -10,6 +10,15 @@ class UsersIntegrationTests(unittest.TestCase):
     def setUp(self):
         db.session.query(User).delete()
         db.session.commit()
+
+    def test_authenticate(self):
+        user = create_user("test@gmail.com", "tester", "pass123", "Auditor")
+        token = login("test@gmail.com", "pass123")
+        self.assertIsNotNone(token)
+        
+        # Test invalid password
+        token_fail = login("test@gmail.com", "wrongpass")
+        self.assertIsNone(token_fail)
 
     def test_create_user(self):
         user = create_user("rick@gmail.com", "rick", "bobpass", "Manager")
