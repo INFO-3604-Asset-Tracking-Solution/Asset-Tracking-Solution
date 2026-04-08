@@ -26,11 +26,12 @@ class AssetAssignment(db.Model):
     # room = db.relationship('Room', backref='assignments', lazy=True)
 
     def __init__(self, asset_id, employee_id,
-     room_id, condition, assignment_date=None, return_date=None):
+     room_id, condition, assignment_date=None, return_date=None, status='Active'):
         self.asset_id = asset_id
         self.employee_id = employee_id
         self.room_id = room_id
         self.condition = condition
+        self.status = status 
         self.assignment_date = assignment_date if assignment_date else datetime.utcnow()
         self.return_date = return_date
   

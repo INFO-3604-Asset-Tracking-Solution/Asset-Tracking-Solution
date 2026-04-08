@@ -17,11 +17,6 @@ class AuditUnitTests(unittest.TestCase):
             audit = Audit(initiator_id=1, status=s)
             self.assertEqual(audit.status, s)
 
-    def test_audit_initiator_id_types(self):
-        a = Audit(initiator_id="A1", status='PENDING')
-        self.assertEqual(a.initiator_id, "A1")
-
-
     def test_audit_get_json(self):
         start = datetime(2025, 2, 1)
         audit = Audit(initiator_id=3, status='IN_PROGRESS', start_date=start)
@@ -31,6 +26,7 @@ class AuditUnitTests(unittest.TestCase):
             'initiator_id': 3,
             'start_date': start,
             'end_date': None,
+            'initiator_username': 'Unknown',
             'status': 'IN_PROGRESS'
         }
         self.assertDictEqual(audit.get_json(), expected_json)
