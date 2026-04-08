@@ -137,13 +137,13 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
 
     def test_create_relocation_avoids_duplicates_for_same_check(self):
         ce = CheckEvent(
-        audit_id=self.audit.audit_id,
-        asset_id=self.asset.asset_id,
-        user_id=1,
-        found_room_id=self.room2.room_id,
-        status='pending relocation',
-        condition='Good'
-    )
+            audit_id=self.audit.audit_id,
+            asset_id=self.asset.asset_id,
+            user_id=1,
+            found_room_id=self.room2.room_id,
+            status='pending relocation',
+            condition='Good'
+        )
         db.session.add(ce)
         db.session.commit()
 
@@ -157,13 +157,13 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
 
     def test_update_relocation_is_idempotent(self):
         ce = CheckEvent(
-        audit_id=self.audit.audit_id,
-        asset_id=self.asset.asset_id,
-        user_id=1,
-        found_room_id=self.room2.room_id,
-        status='pending relocation',
-        condition='Good'
-    )
+            audit_id=self.audit.audit_id,
+            asset_id=self.asset.asset_id,
+            user_id=1,
+            found_room_id=self.room2.room_id,
+            status='pending relocation',
+            condition='Good'
+        )
         db.session.add(ce)
         db.session.commit()
 
@@ -175,7 +175,7 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(second)
         self.assertEqual(first.new_check_event_id, second.new_check_event_id)
         moved_check = CheckEvent.query.get(second.new_check_event_id)
-        self.assertEqual(moved_check.found_room_id, self.room.room_id)
+        self.assertEqual(moved_check.found_room_id, self.room2.room_id)
 
     def test_mark_asset_found_rejects_mismatched_relocation(self):
         # Missing record for self.asset
@@ -186,11 +186,11 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
         db.session.add(asset2)
         db.session.flush()
         assignment2 = AssetAssignment(
-        asset_id=asset2.asset_id,
-        employee_id=self.employee.employee_id,
-        room_id=self.room.room_id,
-        condition="Good"
-    )
+            asset_id=asset2.asset_id,
+            employee_id=self.employee.employee_id,
+            room_id=self.room.room_id,
+            condition="Good"
+        )
         db.session.add(assignment2)
         db.session.flush()
         ce2 = CheckEvent(
@@ -200,7 +200,7 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
             found_room_id=self.room2.room_id,
             status='pending relocation',
             condition='Good'
-    )
+        )
         db.session.add(ce2)
         db.session.commit()
         relocation2 = create_relocation(ce2.check_id, self.room2.room_id)

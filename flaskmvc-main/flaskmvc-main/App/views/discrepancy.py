@@ -16,12 +16,13 @@ from App.controllers.notification import create_notification, get_notifications_
 from App.controllers.audit import get_active_audit
 from App.models.missingdevices import MissingDevice
 from App.models.checkevent import CheckEvent
+from App.models.assetassignment import AssetAssignment
 
 
 discrepancy_views = Blueprint('discrepancy_views', __name__, template_folder='../templates')
 
 
-def _build_discrepancy_rows():
+def _build_discrepancy_rows(audit_id=None):
     """
     Unified discrepancy row builder used by UI + CSV.
     Output shape matches App/static/js/discrepancy.js expectations:
@@ -36,21 +37,27 @@ def _build_discrepancy_rows():
     rows = []
 
     # Missing records (open only)
-    missing_records = MissingDevice.query.filter_by(found_relocation_id=None).all()
+    missing_query = MissingDevice.query.filter_by(found_relocation_id=None)
+    if audit_id:
+        missing_query = missing_query.filter_by(audit_id=audit_id)
+    missing_records = missing_query.all()
     for missing in missing_records:
-        assignment = getattr(missing, "assignment", None)
+        assignment = AssetAssignment.query.get(missing.assignment_id)
         asset_id = assignment.asset_id if assignment else None
         if not asset_id:
             continue
 
         rows.append({
+            "row_type": "missing",
             "asset_id": asset_id,
             "missing": asset_id,
             "relocated": "-",
             "reconciliation": "Pending",
             "missing_id": missing.missing_id,
             "relocation_id": None,
-            "check_id": None
+            "check_id": None,
+            "can_mark_lost": True,
+            "can_mark_relocated": False
         })
 
     # Relocations
@@ -59,18 +66,23 @@ def _build_discrepancy_rows():
         check = CheckEvent.query.get(relocation.check_id)
         if not check:
             continue
+        if audit_id and check.audit_id != audit_id:
+            continue
 
         asset_id = check.asset_id
         reconciliation_status = "Resolved" if relocation.new_check_event_id else "In Review"
 
         rows.append({
+            "row_type": "relocation",
             "asset_id": asset_id,
             "missing": "-",
             "relocated": asset_id,
             "reconciliation": reconciliation_status,
             "missing_id": None,
             "relocation_id": relocation.relocation_id,
-            "check_id": relocation.check_id
+            "check_id": relocation.check_id,
+            "can_mark_lost": False,
+            "can_mark_relocated": relocation.new_check_event_id is None
         })
 
     return rows
@@ -86,7 +98,8 @@ def discrepancy_report_page():
 @jwt_required()
 def get_discrepancies_api():
     try:
-        rows = _build_discrepancy_rows()
+        active_audit = get_active_audit()
+        rows = _build_discrepancy_rows(active_audit.audit_id) if active_audit else []
         return jsonify(rows), 200
     except Exception as e:
         return jsonify({
@@ -99,7 +112,8 @@ def get_discrepancies_api():
 @jwt_required()
 @role_required(['Manager', 'Administrator', 'Auditor'])
 def get_missing_api():
-    rows = [r for r in _build_discrepancy_rows() if r["missing"] != "-"]
+    active_audit = get_active_audit()
+    rows = [r for r in _build_discrepancy_rows(active_audit.audit_id) if r["missing"] != "-"] if active_audit else []
     return jsonify(rows), 200
 
 
@@ -107,7 +121,8 @@ def get_missing_api():
 @jwt_required()
 @role_required(['Manager', 'Administrator', 'Auditor'])
 def get_misplaced_api():
-    rows = [r for r in _build_discrepancy_rows() if r["relocated"] != "-"]
+    active_audit = get_active_audit()
+    rows = [r for r in _build_discrepancy_rows(active_audit.audit_id) if r["relocated"] != "-"] if active_audit else []
     return jsonify(rows), 200
 
 
@@ -385,7 +400,8 @@ def get_all_rooms_for_discrepancy():
 @role_required(['Manager', 'Administrator', 'Auditor'])
 def download_discrepancies():
     try:
-        rows = _build_discrepancy_rows()
+        active_audit = get_active_audit()
+        rows = _build_discrepancy_rows(active_audit.audit_id) if active_audit else []
 
         output = io.StringIO()
         writer = csv.writer(output)
