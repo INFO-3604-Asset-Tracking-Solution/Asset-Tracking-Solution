@@ -188,7 +188,7 @@ async function saveNewAsset() {
         brand: document.getElementById('addAssetBrand')?.value,
         model: document.getElementById('addAssetModel')?.value,
         serial_number: document.getElementById('addAssetSerialNumber')?.value,
-        status_name: "Available",        
+        status_name: document.getElementById('addAssetStatus')?.value,     
         cost: document.getElementById('addAssetCost')?.value,
         notes: document.getElementById('addAssetNotes')?.value
     };  
@@ -270,30 +270,40 @@ function displayAssets(assets) {
     });
 }
 
-
-function handleSearch() {    
+function handleSearch() {
     const input = document.getElementById('searchInput');
     const term = input?.value.toLowerCase() || '';
-    filterState.searchTerm = term;
 
-    document.querySelectorAll('#assetTableBody tr').forEach(row => {        
-        let matchesSearch = false;
+    const filterBy = document.querySelector('input[name="filterBy"]:checked')?.value;
 
-        if (filterState.columnFilter !== null) {
-            // Search ONLY selected column
-            const cell = row.querySelector(`td:nth-child(${filterState.columnFilter + 1})`);
-            const text = cell?.textContent.toLowerCase() || '';
-            matchesSearch = text.includes(term);
-        }else{
-            // Search entire row
-            const text = row.textContent.toLowerCase();
-            matchesSearch = text.includes(term);
+    document.querySelectorAll('#assetTableBody tr').forEach(row => {
+
+        let text = '';
+
+        switch (filterBy) {
+            case 'item':
+                text = row.children[0]?.textContent.toLowerCase();
+                break;
+
+            case 'assetTag':
+                text = row.children[1]?.textContent.toLowerCase();
+                break;
+
+            case 'brandModel':
+                text = row.children[2]?.textContent.toLowerCase();
+                break;
+
+            case 'serialNumber':
+                text = row.children[3]?.textContent.toLowerCase();
+                break;
+
+            default:
+                text = row.textContent.toLowerCase();
         }
 
-        row.style.display = matchesSearch ? '' : 'none';
+        row.style.display = text.includes(term) ? '' : 'none';
     });
 }
-
 
 async function updateAsset() {
     const assetId = document.getElementById("assetId").value;
@@ -675,8 +685,24 @@ function handleAssignmentSearch() {
     /*HAMBUGER MENU*/
 
 document.addEventListener('DOMContentLoaded', () => {
-    setupEvents();
-    loadAssets();
+    loadAssets()
+
+    let lastChecked = "item";
+    document.getElementById('searchInput')
+    ?.addEventListener('input', handleSearch);
+
+    document.querySelectorAll('input[name="filterBy"]').forEach(radio => {
+        radio.addEventListener('click', function () {
+            if (this.value === lastChecked) {
+                this.checked = false;
+                lastChecked = null;
+            } else {
+                lastChecked = this.value;
+            }
+
+            handleSearch();
+        });
+    });
 
     const menuBtn = document.getElementById('menuBtn');
     const menu = document.getElementById('menu');
@@ -702,16 +728,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function setupEvents() {
-    document.querySelectorAll('.status-filter').forEach(btn => {
-        btn.addEventListener('click', () =>
-            filterState.addStatusFilter(btn.dataset.status)
-        );
-    });
-    document.querySelectorAll('.column-filter').forEach(btn => {
-        btn.addEventListener('click', () =>
-            filterState.setColumnFilter(parseInt(btn.dataset.column))
-        );
-    });
 
     const search = document.getElementById('searchInput');
     if (search) search.addEventListener('input', handleSearch);
