@@ -20,20 +20,20 @@
     <label>Asset ID</label>
     <input id="assetId" 
             class="form-control mb-2" 
-            value="{{ assignment.asset_id }}">
+            value="{{ assignment.asset_id }}"
             {% if current_user.role == 'Auditor' %}disabled{% endif %}>
 
 
     <label>Employee ID</label>
     <input id="employeeId" 
             class="form-control mb-2" 
-            value="{{ assignment.employee_id }}">
+            value="{{ assignment.employee_id }}"
             {% if current_user.role == 'Auditor' %}disabled{% endif %}>
 
     <label>Room ID</label>
     <input id="roomId" 
             class="form-control mb-2" 
-            value="{{ assignment.room_id }}">
+            value="{{ assignment.room_id }}"
             {% if current_user.role == 'Auditor' %}disabled{% endif %}>
 
     <label>Condition</label>
