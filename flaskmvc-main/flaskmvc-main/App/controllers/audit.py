@@ -218,6 +218,9 @@ def generate_audit_report(audit_id):
     return report
 
 def generate_interim_report(audit_id):
+    audit = get_audit_by_id(audit_id)
+    if not audit or audit.status == "COMPLETED":
+        return None
     return generate_audit_report(audit_id)
 
 def generate_final_report(audit_id):

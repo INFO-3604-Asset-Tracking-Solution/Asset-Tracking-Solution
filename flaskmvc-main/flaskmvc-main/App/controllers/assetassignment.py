@@ -37,6 +37,7 @@ def end_assignment(assignment_id):
         return None
 
     assignment.return_date = datetime.utcnow()
+    assignment.status = "Completed"
 
     db.session.commit()
 
