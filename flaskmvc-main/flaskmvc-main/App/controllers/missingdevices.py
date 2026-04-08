@@ -1,5 +1,5 @@
 from datetime import datetime
-from App.models import MissingDevice, AssetAssignment, Audit, Relocation, Asset, AssetStatus
+from App.models import MissingDevice, AssetAssignment, Audit, Relocation, Asset, AssetStatus, CheckEvent
 from App.database import db
 
 
@@ -36,6 +36,17 @@ def mark_asset_found(missing_id, relocation_id):
     relocation = Relocation.query.get(relocation_id)
 
     if not missing or not relocation:
+        return None
+    if missing.found_relocation_id:
+        return missing if missing.found_relocation_id == relocation_id else None
+
+    assignment = AssetAssignment.query.get(missing.assignment_id)
+    relocation_check = CheckEvent.query.get(relocation.check_id)
+    if not assignment or not relocation_check:
+        return None
+    if missing.audit_id != relocation_check.audit_id:
+        return None
+    if assignment.asset_id != relocation_check.asset_id:
         return None
 
     missing.found_relocation_id = relocation_id

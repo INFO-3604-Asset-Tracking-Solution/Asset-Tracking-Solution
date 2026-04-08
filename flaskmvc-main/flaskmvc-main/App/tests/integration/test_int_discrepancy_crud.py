@@ -134,3 +134,76 @@ class DiscrepancyCRUDIntegrationTests(unittest.TestCase):
         found = mark_asset_found(missing.missing_id, relocation.relocation_id)
         self.assertIsNotNone(found)
         self.assertEqual(found.found_relocation_id, relocation.relocation_id)
+
+    def test_create_relocation_avoids_duplicates_for_same_check(self):
+        ce = CheckEvent(
+        audit_id=self.audit.audit_id,
+        asset_id=self.asset.asset_id,
+        user_id=1,
+        found_room_id=self.room2.room_id,
+        status='pending relocation',
+        condition='Good'
+    )
+        db.session.add(ce)
+        db.session.commit()
+
+        relocation_a = create_relocation(ce.check_id, self.room2.room_id)
+        relocation_b = create_relocation(ce.check_id, self.room2.room_id)
+
+        self.assertIsNotNone(relocation_a)
+        self.assertEqual(relocation_a.relocation_id, relocation_b.relocation_id)
+        count = Relocation.query.filter_by(check_id=ce.check_id).count()
+        self.assertEqual(count, 1)
+
+    def test_update_relocation_is_idempotent(self):
+        ce = CheckEvent(
+        audit_id=self.audit.audit_id,
+        asset_id=self.asset.asset_id,
+        user_id=1,
+        found_room_id=self.room2.room_id,
+        status='pending relocation',
+        condition='Good'
+    )
+        db.session.add(ce)
+        db.session.commit()
+
+        relocation = create_relocation(ce.check_id, self.room2.room_id)
+        first = update_relocation(relocation.relocation_id, self.room.room_id)
+        second = update_relocation(relocation.relocation_id, self.room2.room_id)
+
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertEqual(first.new_check_event_id, second.new_check_event_id)
+        moved_check = CheckEvent.query.get(second.new_check_event_id)
+        self.assertEqual(moved_check.found_room_id, self.room.room_id)
+
+    def test_mark_asset_found_rejects_mismatched_relocation(self):
+        # Missing record for self.asset
+        missing = mark_asset_missing(self.audit.audit_id, self.assignment.assignment_id)
+
+        # Create a different asset + assignment + check + relocation
+        asset2 = Asset(description="Another item", status_id=self.status.status_id)
+        db.session.add(asset2)
+        db.session.flush()
+        assignment2 = AssetAssignment(
+        asset_id=asset2.asset_id,
+        employee_id=self.employee.employee_id,
+        room_id=self.room.room_id,
+        condition="Good"
+    )
+        db.session.add(assignment2)
+        db.session.flush()
+        ce2 = CheckEvent(
+            audit_id=self.audit.audit_id,
+            asset_id=asset2.asset_id,
+            user_id=1,
+            found_room_id=self.room2.room_id,
+            status='pending relocation',
+            condition='Good'
+    )
+        db.session.add(ce2)
+        db.session.commit()
+        relocation2 = create_relocation(ce2.check_id, self.room2.room_id)
+
+        found = mark_asset_found(missing.missing_id, relocation2.relocation_id)
+        self.assertIsNone(found)
