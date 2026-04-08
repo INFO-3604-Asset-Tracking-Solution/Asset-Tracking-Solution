@@ -9,6 +9,14 @@ def create_relocation(check_id, found_room_id):
     if not check or not room:
         return None
 
+    # Idempotency guard: if unresolved relocation exists for this check, reuse it
+    existing = Relocation.query.filter_by(
+        check_id=check_id,
+        new_check_event_id=None
+    ).first()
+    if existing:
+        return existing
+
     relocation = Relocation(
         check_id=check_id,
         found_in_id=found_room_id,
@@ -18,7 +26,6 @@ def create_relocation(check_id, found_room_id):
     db.session.commit()
 
     return relocation
-
 
 def get_all_relocations():
     return Relocation.query.all()
@@ -35,14 +42,21 @@ def get_relocation_by_check(check_id):
 def update_relocation(relocation_id, item_relocated_room_id):
     """
     Updates the relocation with the new room id
-    and creates a new check event for the relocated item
+    and creates a new check event for the relocated item.
     """
     relocation = get_relocation(relocation_id)
     if not relocation:
         return None
 
+    # Already resolved: idempotent return
+    if relocation.new_check_event_id:
+        return relocation
+
     check = CheckEvent.query.get(relocation.check_id)
     room = Room.query.get(item_relocated_room_id)
+
+    if relocation.new_check_event_id:
+        return relocation
 
     if not check or not room:
         return None
