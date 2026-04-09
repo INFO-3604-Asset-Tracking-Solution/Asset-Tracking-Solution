@@ -16,22 +16,29 @@ def load_config(app, overrides):
     app.config['ENV'] = os.environ.get('ENV', 'DEVELOPMENT') # Get ENV variable
 
     if app.config['ENV'] == 'production':
-        db_url = os.environ.get('POSTGRES_URL')
-        db_user = os.environ.get('POSTGRES_USER')
-        db_password = os.environ.get('POSTGRES_PASSWORD')
-        db_name = os.environ.get('POSTGRES_DB')
-
-        if all([db_url, db_user, db_password, db_name]):
-             # Construct the PostgreSQL connection string
-             # Render uses 'POSTGRES_URL' for the host, adjust if using external db
-             # Ensure the driver is correct (psycopg2)
-            database_uri = f"postgresql://{db_user}:{db_password}@{db_url}/{db_name}"
-            app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
-            print("Production database URI configured.") # Add print for debugging in logs
+        # Check for explicitly set SQLALCHEMY_DATABASE_URI (based on your screenshot)
+        database_url = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
+        
+        if database_url:
+            # SQLAlchemy 1.4+ requires postgresql:// instead of postgres://
+            if database_url.startswith("postgres://"):
+                database_url = database_url.replace("postgres://", "postgresql://", 1)
+            app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+            print("Production database URI configured from environment variable.")
         else:
-            print("Warning: Production ENV set but missing PostgreSQL ENV variables. Falling back to default.")
-            # Fallback to default if production vars aren't fully set (shouldn't happen on Render)
-            app.config.from_object('App.default_config')
+            db_url = os.environ.get('POSTGRES_URL')
+            db_user = os.environ.get('POSTGRES_USER')
+            db_password = os.environ.get('POSTGRES_PASSWORD')
+            db_name = os.environ.get('POSTGRES_DB')
+
+            if all([db_url, db_user, db_password, db_name]):
+                 # Construct the PostgreSQL connection string
+                database_uri = f"postgresql://{db_user}:{db_password}@{db_url}/{db_name}"
+                app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
+                print("Production database URI configured from separate variables.")
+            else:
+                print("Warning: Production ENV set but missing PostgreSQL ENV variables. Falling back to default.")
+                app.config.from_object('App.default_config')
     # else: # Development or other envs will use the default loaded earlier
         # print(f"Non-production ENV ('{app.config['ENV']}'), using default DB URI.")
 
