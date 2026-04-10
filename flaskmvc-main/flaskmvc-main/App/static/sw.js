@@ -9,13 +9,6 @@ if (workbox) {
 
     // Precache essential static assets and routes for offline access
     workbox.precaching.precacheAndRoute([
-        { url: '/inventory', revision: '1.5' },
-        { url: '/settings', revision: '1.5' },
-        { url: '/static/css/style.css?v=1.3', revision: '1.4' },
-        { url: '/static/css/audit.css', revision: '1.4' },
-        { url: '/static/css/inventory.css?v=1.1', revision: '1.4' },
-        { url: '/static/js/audit.js', revision: '1.5' },
-        { url: '/static/js/inventory.js', revision: '1.5' },
         { url: '/static/manifest.json', revision: '1.4' },
         { url: '/static/images/profile_icon.png', revision: '1.4' },
         { url: '/static/images/barcode_icon.svg', revision: '1.4' },
@@ -27,8 +20,6 @@ if (workbox) {
         { url: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css', revision: '1.4' },
         { url: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js', revision: '1.4' },
         { url: 'https://unpkg.com/html5-qrcode', revision: '1.4' },
-        { url: '/api/assets', revision: '1.4' },
-
     ]);
 
     // Configure Background Sync for API write requests (POST, PUT, DELETE)
