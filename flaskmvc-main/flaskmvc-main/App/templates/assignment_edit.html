@@ -39,7 +39,6 @@
     <label>Condition</label>
     <select id="condition" 
             class="form-select mb-2">
-            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
         <option value="Good" {% if assignment.condition == 'Good' %}selected{% endif %}>Good</option>
         <option value="Needs Repair" {% if assignment.condition == 'Needs Repair' %}selected{% endif %}>Needs Repair</option>
         <option value="Beyond Repair" {% if assignment.condition == 'Beyond Repair' %}selected{% endif %}>Beyond Repair</option>
@@ -54,8 +53,7 @@
     <input type="date" 
             id="returnDate" 
             class="form-control mb-3"
-            value="{{ assignment.return_date.strftime('%Y-%m-%d') if assignment.return_date else '' }}"
-            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
+            value="{{ assignment.return_date.strftime('%Y-%m-%d') if assignment.return_date else '' }}">
 
 
     <div class="d-flex justify-content-end gap-2 mt-3">

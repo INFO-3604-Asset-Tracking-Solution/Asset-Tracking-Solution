@@ -258,41 +258,73 @@ def assignment_edit_page(assignment_id):
 
     return render_template('assignment_edit.html', assignment=assignment)
 
-
 @inventory_views.route('/api/assignments/<assignment_id>/update', methods=['POST'])
+@jwt_required()
 def update_assignment(assignment_id):
+
     data = request.get_json()
-    assignment = Assignment.query.get_or_404(assignment_id)
+
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+
+    assignment = AssetAssignment.query.get(assignment_id)
+    if not assignment:
+        return jsonify({"success": False, "message": "Assignment not found"}), 404
 
     role = current_user.role
 
-    # AUDITOR can ONLY return_date
-    if role == "Auditor":
-        if "return_date" not in data:
-            return jsonify({"success": False, "message": "return_date required"}), 400
+    try:
 
-        assignment.return_date = data["return_date"]
+        # AUDITOR PERMISSIONS ONLY
+        if role == "Auditor":
 
-    # ADMIN and  MANAGER 
-    else:
-        if "asset_id" in data:
-            assignment.asset_id = data["asset_id"]
+            if "return_date" in data:
+                assignment.return_date = (
+                    datetime.strptime(data["return_date"], "%Y-%m-%d")
+                    if data["return_date"] else None
+                )
 
-        if "employee_id" in data:
-            assignment.employee_id = data["employee_id"]
+            if "condition" in data and data["condition"]:
+                assignment.condition = data["condition"]
 
-        if "room_id" in data:
-            assignment.room_id = data["room_id"]
+        # ADMIN / MANAGER PERMISSIONS
+        else:
 
-        if "condition" in data:
-            assignment.condition = data["condition"]
+            if "asset_id" in data and data["asset_id"]:
+                assignment.asset_id = data["asset_id"]
 
-        if "return_date" in data:
-            assignment.return_date = data["return_date"]
+            if "employee_id" in data and data["employee_id"]:
+                assignment.employee_id = data["employee_id"]
 
-    db.session.commit()
+            if "room_id" in data and data["room_id"]:
+                assignment.room_id = data["room_id"]
 
-    return jsonify({"success": True, "message": "Assignment updated"})
+            if "condition" in data and data["condition"]:
+                assignment.condition = data["condition"]
+
+            if "return_date" in data:
+                assignment.return_date = (
+                    datetime.strptime(data["return_date"], "%Y-%m-%d")
+                    if data["return_date"] else None
+                )
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Assignment updated successfully",
+            "assignment": assignment.get_json() if hasattr(assignment, "get_json") else None
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print("UPDATE ERROR:", e)
+
+        return jsonify({
+            "success": False,
+            "message": f"Server error: {str(e)}"
+        }), 500
+
 
 @inventory_views.route('/api/assignments/<assignment_id>/delete', methods=['POST'])
 @jwt_required()
