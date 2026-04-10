@@ -21,6 +21,10 @@ from sqlalchemy import inspect
 def initialize():
     print("--- Running Database Initialization ---")
 
+    # Ensure session is clean before starting
+    db.session.remove()
+    db.session.rollback()
+
     # Now try dropping all tables
     try:
         print("Dropping all tables...")
@@ -29,12 +33,15 @@ def initialize():
         print("Creating all tables...")
         db.create_all()
 
-        print("Database rest complete.")
+        # Commit to ensure DDL is finished
+        db.session.commit()
+
+        print("Database reset complete.")
         
     except Exception as e:
         db.session.rollback()
-        print(f"!!! Warning: Error during reset: {e}. Proceeding with drop_all...")
-        return  # stop if create fails    
+        print(f"!!! Error during database schema reset: {e}")
+        return  # stop if create fails
 
     # Add default data (user, rooms, etc.)
     try:
