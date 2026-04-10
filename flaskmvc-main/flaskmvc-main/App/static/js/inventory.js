@@ -365,9 +365,9 @@ function openAssignmentModal() {
 
 async function submitAssignment() {
     const payload = {
-        asset_id: document.getElementById('assignAssetId').value,
-        employee_id: document.getElementById('assignEmployeeId').value,
-        room_id: document.getElementById('assignRoomId').value,
+        asset_id: document.getElementById('assignAssetId').value.trim(),
+        employee_id: document.getElementById('assignEmployeeId').value.trim(),
+        room_id: document.getElementById('assignRoomId').value.trim(),
         condition: document.getElementById('assignCondition').value,
         assign_date: document.getElementById('assignDate').value,
     };
@@ -383,12 +383,11 @@ async function submitAssignment() {
         });
 
         const data = await res.json();
-        /*console.log("Response:", data);*/
 
         if (res.ok && data.success) {
             showMessage('Assignment created', 'success');
             bootstrap.Modal.getInstance(document.getElementById('assignmentModal')).hide();
-            loadAssets();
+            loadAssignments();
         } else {
             showMessage(data.message || 'Failed assignment', 'danger');
         }
@@ -399,21 +398,19 @@ async function submitAssignment() {
     }
 }
 
-
 async function updateAssignment() {
-    const assignmentId = document.getElementById('assignmentId').value;
+    const assignmentId = document.getElementById('assignmentId').value.trim();
+    const returnDateValue = document.getElementById('returnDate').value;
 
-    // Auditor is only allowed to update return_date
     const payload = {
-        return_date: document.getElementById('returnDate').value || null
+        return_date: returnDateValue || null,
+        condition: document.getElementById('condition').value
     };
 
     try {
         const res = await fetch(`/api/assignments/${assignmentId}/update`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
             body: JSON.stringify(payload)
         });
@@ -421,15 +418,17 @@ async function updateAssignment() {
         const data = await res.json();
 
         if (res.ok && data.success) {
-            alert("Assignment updated successfully");
-            history.back();
+            showMessage("Assignment updated successfully", "success");
+
+            // safer than stale back navigation
+            window.location.href = "/inventory";
         } else {
-            alert(data.message || "Update failed");
+            showMessage(data.message || "Update failed", "danger");
         }
 
     } catch (err) {
         console.error(err);
-        alert("Server error");
+        showMessage("Server error", "danger");
     }
 }
 
