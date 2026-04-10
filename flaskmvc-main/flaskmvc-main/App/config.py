@@ -15,7 +15,7 @@ def load_config(app, overrides):
     # === Explicitly handle Production Database ===
     app.config['ENV'] = os.environ.get('ENV', 'DEVELOPMENT') # Get ENV variable
 
-    if app.config['ENV'] == 'production':
+    if app.config['ENV'] == 'PRODUCTION':
         # Check for explicitly set SQLALCHEMY_DATABASE_URI (based on your screenshot)
         database_url = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
         
