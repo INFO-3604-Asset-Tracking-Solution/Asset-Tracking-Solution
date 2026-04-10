@@ -393,8 +393,8 @@ const QRScanner = (function () {
         const model = sanitizeInput(parts[3]);
         const serialNumber = sanitizeInput(parts[4]);
 
-        // VALIDATION: If the asset ID is empty or malformed, it's an invalid scan
-        if (!assetId || assetId.length < 2) {
+        // VALIDATION: If the asset ID is empty or malformed, or doesn't follow our pipe-delimited format, it's an invalid scan
+        if (!assetId || assetId.length < 2 || parts.length < 2) {
             console.error('Scanned QR code contains invalid Asset ID:', assetId);
             Haptic.invalid();
             UI.showScanFeedback('error', 'Invalid Scan', 'Malformed QR code data');

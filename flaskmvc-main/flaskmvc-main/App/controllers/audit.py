@@ -1,6 +1,7 @@
 from App.models import Audit, CheckEvent, MissingDevice, AssetAssignment, Asset, Room
 from App.database import db
 from datetime import datetime
+from App.controllers.missingdevices import mark_asset_missing, mark_asset_lost
 
 def create_audit(initiator_id):
 
@@ -21,8 +22,9 @@ def create_audit(initiator_id):
 
     return audit
 
+
+
 def end_audit():
-    
     # Get the currently active audit
     audit = Audit.query.filter(Audit.status.in_(['IN_PROGRESS', 'PENDING'])).first()
 
@@ -34,13 +36,21 @@ def end_audit():
     if pending_checks:
         return None # Can't close if pending relocation exists
 
-    # Audit cannot finish without relocation table having all assets be relocated 
+    # Mark unscanned assets as lost
+    report = generate_audit_report(audit.audit_id)
+    for unscanned in report['unscanned']:
+        # Find active assignment
+        assignment = AssetAssignment.query.filter_by(asset_id=unscanned['asset_id'], return_date=None).first()
+        if assignment:
+            # Mark as missing first if not already done
+            missing_rec = mark_asset_missing(audit.audit_id, assignment.assignment_id)
+            if missing_rec:
+                mark_asset_lost(missing_rec.missing_id)
     
     audit.end_date = datetime.utcnow()
     audit.status = "COMPLETED"
 
     db.session.commit()
-
     return audit
 
 def get_all_audits():
@@ -154,12 +164,16 @@ def generate_audit_report(audit_id, end_date=None):
             enrich_event = ce.get_json()
             enrich_event['asset_description'] = asset_desc
             enrich_event['expected_room'] = assignment.room_id
+            enrich_event['expected_room_name'] = r_data['room_name']
             enrich_event['expected_condition'] = assignment.condition
+            
+            found_room_obj = Room.query.get(ce.found_room_id)
+            enrich_event['found_room_name'] = found_room_obj.room_name if found_room_obj else f"Room {ce.found_room_id}"
             
             is_correct_room = (int(ce.found_room_id) == int(assignment.room_id))
             is_correct_condition = (ce.condition == assignment.condition)
             
-            if is_correct_room and is_correct_condition:
+            if is_correct_room:
                 report['found_correct'].append(enrich_event)
                 
             if not is_correct_room:
@@ -186,6 +200,7 @@ def generate_audit_report(audit_id, end_date=None):
                 'asset_id': assignment.asset_id,
                 'asset_description': asset_desc,
                 'expected_room': assignment.room_id,
+                'expected_room_name': r_data['room_name'],
                 'status': 'Pending Verification'
             })
         
@@ -205,6 +220,7 @@ def generate_audit_report(audit_id, end_date=None):
                     'asset_id': assignment.asset_id,
                     'asset_description': asset.description if asset else 'Unknown',
                     'expected_room': assignment.room_id,
+                    'expected_room_name': r_data['room_name'],
                     'missing_since': missing_record.timestamp.strftime('%Y-%m-%d %H:%M:%S')
                 })
             
@@ -219,8 +235,19 @@ def generate_audit_report(audit_id, end_date=None):
         enrich_event = ce.get_json()
         enrich_event['asset_description'] = asset.description if asset else "Unknown/Unassigned"
         enrich_event['expected_room'] = 'None'
+        enrich_event['expected_room_name'] = 'Unknown/None'
         enrich_event['expected_condition'] = 'None'
-        report['unexpected'].append(enrich_event)
+        
+        found_room_obj = Room.query.get(ce.found_room_id)
+        enrich_event['found_room_name'] = found_room_obj.room_name if found_room_obj else f"Room {ce.found_room_id}"
+        
+        # If asset exists but no assignment, it's a relocation from unknown origin
+        if asset:
+            report['relocated'].append(enrich_event)
+            r_data = get_room_data(int(ce.found_room_id))
+            r_data['relocated_out_count'] += 1 # Technically relocated IN, but we use this to track discrepancies
+        else:
+            report['unexpected'].append(enrich_event)
         
     report['room_breakdown'] = list(rooms_data.values())
     return report
@@ -280,4 +307,4 @@ def generate_daily_interim_reports_for_audit(audit_id):
     return {
         "dates": [d.strftime('%Y-%m-%d') for d in dates],
         "reports": reports_by_date
-    }
+    }

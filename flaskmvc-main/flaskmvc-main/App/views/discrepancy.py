@@ -1,14 +1,17 @@
 import csv
 import io
 from datetime import datetime
+ 
 
 from flask import Blueprint, Response, jsonify, render_template, request
-from flask_jwt_extended import current_user, jwt_required
+from flask_jwt_extended import current_user, jwt_required, get_jwt_identity
 
 from App.database import db
 from App.controllers.permissions import role_required
 from App.controllers.room import get_all_rooms_json, get_room
-from App.controllers.relocation import create_relocation, get_all_relocations, update_relocation
+from App.controllers.relocation import *
+from App.controllers.user import get_user
+
 from App.controllers.missingdevices import mark_asset_found, mark_asset_lost
 from App.controllers.checkevent import update_check_event_condition
 from App.controllers.assetassignment import get_current_asset_assignment, reconcile_discrepancy
@@ -17,22 +20,17 @@ from App.controllers.audit import get_active_audit
 from App.models.missingdevices import MissingDevice
 from App.models.checkevent import CheckEvent
 from App.models.assetassignment import AssetAssignment
+from App.models.asset import Asset
+from App.models.room import Room
 
 
 discrepancy_views = Blueprint('discrepancy_views', __name__, template_folder='../templates')
+print("DEBUG: Discrepancy views loaded with enrichment logic.")
 
 
 def _build_discrepancy_rows(audit_id=None):
     """
     Unified discrepancy row builder used by UI + CSV.
-    Output shape matches App/static/js/discrepancy.js expectations:
-      - asset_id
-      - missing
-      - relocated
-      - reconciliation
-      - missing_id
-      - relocation_id
-      - check_id
     """
     rows = []
 
@@ -46,10 +44,13 @@ def _build_discrepancy_rows(audit_id=None):
         asset_id = assignment.asset_id if assignment else None
         if not asset_id:
             continue
+        
+        asset = Asset.query.get(asset_id)
 
         rows.append({
             "row_type": "missing",
             "asset_id": asset_id,
+            "asset_description": asset.description if asset else "No description",
             "missing": asset_id,
             "relocated": "-",
             "reconciliation": "Pending",
@@ -70,11 +71,22 @@ def _build_discrepancy_rows(audit_id=None):
             continue
 
         asset_id = check.asset_id
-        reconciliation_status = "Resolved" if relocation.new_check_event_id else "In Review"
+        asset = Asset.query.get(asset_id)
+        
+        # Room info for modal UI
+        assignment = AssetAssignment.query.filter_by(asset_id=asset_id, return_date=None).first()
+        expected_room = Room.query.get(assignment.room_id) if assignment else None
+        found_room = Room.query.get(relocation.found_in_id)
+        
+        reconciliation_status = "Resolved" if relocation.new_check_event_id else "Room Mismatch"
 
         rows.append({
             "row_type": "relocation",
             "asset_id": asset_id,
+            "asset_description": asset.description if asset else "No description",
+            "expected_room_name": expected_room.room_name if expected_room else "Unassigned",
+            "found_room_name": found_room.room_name if found_room else "Unknown",
+            "found_room_id": found_room.room_id if found_room else None,
             "missing": "-",
             "relocated": asset_id,
             "reconciliation": reconciliation_status,
@@ -473,3 +485,26 @@ def notify_discrepancy():
 def get_my_notifications():
     notifications = get_notifications_by_recipient_id(current_user.user_id)
     return jsonify([notification.get_json() for notification in notifications]), 200
+
+@discrepancy_views.route('/api/relocation/resolve', methods=['POST'])
+@jwt_required()
+def resolve_relocation_extended_route():
+    user_id = get_jwt_identity()
+    user = get_user(user_id)
+    
+    if user.role not in ['Manager', 'Administrator']:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    data = request.json or {}
+    relocation_id = data.get("relocation_id")
+    choice = data.get("choice")
+    new_room_id = data.get("new_room_id")
+
+    if not relocation_id or not choice:
+        return jsonify({"message": "Missing required fields"}), 400
+
+    result = resolve_relocation_extended(relocation_id, choice, new_room_id)
+    if result:
+        return jsonify({"message": f"Relocation resolved as {choice}", "success": True}), 200
+    
+    return jsonify({"message": "Failed to resolve relocation"}), 500

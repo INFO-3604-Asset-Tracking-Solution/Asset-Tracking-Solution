@@ -58,10 +58,12 @@ def mark_asset_found(missing_id, relocation_id):
 def mark_asset_lost(missing_id):
     missing = MissingDevice.query.get(missing_id)
     if not missing:
+        print(f"Error: Missing record {missing_id} not found.")
         return None
 
     assignment = AssetAssignment.query.get(missing.assignment_id)
     if not assignment:
+        print(f"Error: Assignment {missing.assignment_id} not found for missing record.")
         return None
 
     # End current assignment
@@ -73,11 +75,17 @@ def mark_asset_lost(missing_id):
     if asset:
         lost_status = AssetStatus.query.filter_by(status_name="Lost").first()
         if not lost_status:
+            # Fallback for capitalization/space issues
+            lost_status = AssetStatus.query.filter(AssetStatus.status_name.ilike("lost")).first()
+            
+        if not lost_status:
             lost_status = AssetStatus(status_name="Lost")
             db.session.add(lost_status)
             db.session.flush()
 
         asset.status_id = lost_status.status_id
+        asset.notes = (asset.notes or "") + f" | Marked as LOST during Audit {missing.audit_id} on {datetime.utcnow().strftime('%Y-%m-%d')}"
+        print(f"Asset {asset.asset_id} marked as LOST.")
 
     db.session.commit()
     return missing
