@@ -121,16 +121,26 @@ def create_check_event_api():
                 }), 400
             audit_id = active_audit.audit_id
 
-        current_assignment = get_current_asset_assignment(asset_id)
-        if not current_assignment:
+        from App.models.asset import Asset
+        asset = Asset.query.get(asset_id)
+        if not asset:
             return jsonify({
                 'success': False,
-                'message': 'No active assignment found for this asset'
+                'message': f'Asset {asset_id} does not exist in the database'
             }), 404
 
+        current_assignment = get_current_asset_assignment(asset_id)
+        
         status = 'found'
-        if int(current_assignment.room_id) != int(found_room_id):
+        location_discrepancy = False
+
+        if not current_assignment:
+            # Asset exists but has no active assignment to any room
             status = 'pending relocation'
+            location_discrepancy = True
+        elif int(current_assignment.room_id) != int(found_room_id):
+            status = 'pending relocation'
+            location_discrepancy = True
 
         check_event = create_check_event(
             audit_id=audit_id,

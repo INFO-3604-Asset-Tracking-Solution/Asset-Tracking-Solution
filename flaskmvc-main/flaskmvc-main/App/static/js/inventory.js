@@ -183,6 +183,12 @@ async function loadRoomsForModal() {
 }
 
 async function saveNewAsset() {
+    const saveBtn = document.getElementById('saveAssetBtn');
+    const userRole = saveBtn?.dataset.role || '';
+    
+    const isProposing = (userRole === 'Auditor');
+    const endpoint = isProposing ? '/api/authorizations/propose' : '/api/asset/add';
+
     const payload = {
         description: document.getElementById('addAssetDescription')?.value,
         brand: document.getElementById('addAssetBrand')?.value,
@@ -198,29 +204,61 @@ async function saveNewAsset() {
         return;
     }
 
+    if (payload.cost && parseFloat(payload.cost) < 0) {
+        showMessage("Cost cannot be negative", "warning");
+        return;
+    }
+
     try {
-        const res = await fetch('/api/asset/add', {
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload),
             credentials: 'same-origin'
-
         });
 
         const data = await res.json();
 
-        if (res.ok && data.success) {
-            showMessage('Asset created successfully', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('addAssetModal')).hide();
-            loadAssets();
+        if (res.ok && (data.success || isProposing)) {
+            const successMsg = isProposing ? 'Asset proposal submitted for approval' : 'Asset created successfully';
+            showMessage(successMsg, 'success');
+            
+            const modalEl = document.getElementById('addAssetModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            
+            // Note: field clearing happens automatically via the 'hidden.bs.modal' listener
+            
+            if (!isProposing) {
+                loadAssets();
+            }
         } else {
-            showMessage(data.message || 'Failed to create asset', 'danger');
+            showMessage(data.message || 'Action failed', 'danger');
         }
 
     } catch (err) {
         console.error(err);
         showMessage("Server error", "danger");
     }
+}
+
+function clearAddAssetModal() {
+    const fields = [
+        'addAssetDescription', 
+        'addAssetBrand', 
+        'addAssetModel', 
+        'addAssetSerialNumber', 
+        'addAssetCost', 
+        'addAssetNotes'
+    ];
+    
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    const statusSelect = document.getElementById('addAssetStatus');
+    if (statusSelect) statusSelect.selectedIndex = 0;
 }
 
 /* Track which assets are selected for bulk QR export */
@@ -611,10 +649,19 @@ function openAssignmentModal() {
 }
 
 async function submitAssignment() {
+    const assetId = document.getElementById('assignAssetId').value;
+    const employeeId = document.getElementById('assignEmployeeId').value;
+    const roomId = document.getElementById('assignRoomId').value;
+
+    if (!assetId || !employeeId || !roomId) {
+        showMessage('Please select an Asset, Employee, and Room from the search results.', 'warning');
+        return;
+    }
+
     const payload = {
-        asset_id: document.getElementById('assignAssetId').value.trim(),
-        employee_id: document.getElementById('assignEmployeeId').value.trim(),
-        room_id: document.getElementById('assignRoomId').value.trim(),
+        asset_id: assetId,
+        employee_id: employeeId,
+        room_id: roomId,
         condition: document.getElementById('assignCondition').value,
         assign_date: document.getElementById('assignDate').value,
     };
@@ -707,8 +754,9 @@ async function loadAssignments() {
             row.innerHTML = `
                 <td>${a.assignment_id ?? ''}</td>
                 <td>${a.asset_id ?? ''}</td>
-                <td>${a.employee_id ?? ''}</td>
-                <td>${a.room_id ?? ''}</td>
+                <td>${a.asset_description ?? ''}</td>
+                <td>${a.employee_name ?? a.employee_id ?? ''}</td>
+                <td>${a.room_name ?? a.room_id ?? ''}</td>
                 <td>${a.condition ?? ''}</td>
                 <td>${formatDate(a.assignment_date)}</td>
                 <td>${a.return_date ? formatDate(a.return_date) : 'N/A'}</td>
@@ -776,8 +824,9 @@ async function viewAssignments() {
                 row.innerHTML = `
                     <td>${a.assignment_id ?? ''}</td>
                     <td>${a.asset_id ?? ''}</td>
-                    <td>${a.employee_id ?? ''}</td>
-                    <td>${a.room_id ?? ''}</td>
+                    <td>${a.asset_description ?? ''}</td>
+                    <td>${a.employee_name ?? a.employee_id ?? ''}</td>
+                    <td>${a.room_name ?? a.room_id ?? ''}</td>
                     <td>${a.condition ?? ''}</td>
                     <td>${formatDate(a.assignment_date)}</td>
                     <td>${a.return_date ? formatDate(a.return_date) : 'N/A'}</td>
@@ -963,8 +1012,11 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.classList.toggle('d-none');
     });
 
-    menu.addEventListener('click', (e) => {
-        e.stopPropagation();
+    // Close menu when clicking any button inside it
+    menu.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            menu.classList.add('d-none');
+        });
     });
 
     document.addEventListener('click', () => {
@@ -978,3 +1030,142 @@ function setupEvents() {
     const search = document.getElementById('searchInput');
     if (search) search.addEventListener('input', handleSearch);
 }
+
+/* ------------ AUTOCOMPLETE SEARCHABLE DROPDOWNS ------------ */
+
+// Data Store
+const AutocompleteData = {
+    assets: [],
+    employees: [],
+    rooms: []
+};
+
+async function loadAutocompleteData() {
+    try {
+        console.log("Loading autocomplete data...");
+        const [assetRes, empRes, roomRes] = await Promise.all([
+            fetch('/api/assets'),
+            fetch('/api/employees/all'),
+            fetch('/api/rooms/all')
+        ]);
+
+        AutocompleteData.assets = await assetRes.json();
+        AutocompleteData.employees = await empRes.json();
+        AutocompleteData.rooms = await roomRes.json();
+
+        // Setup Asset Autocomplete
+        setupAutocomplete(
+            'assignAssetSearch', 
+            'assignAssetId', 
+            'assetResults', 
+            AutocompleteData.assets, 
+            (item) => `${item.asset_id} - ${item.description}`, 
+            (item) => item.asset_id,
+            (item, term) => (item.asset_id + item.description).toLowerCase().includes(term)
+        );
+
+        // Setup Employee Autocomplete
+        setupAutocomplete(
+            'assignEmployeeSearch', 
+            'assignEmployeeId', 
+            'employeeResults', 
+            AutocompleteData.employees, 
+            (item) => item.full_name, 
+            (item) => item.employee_id,
+            (item, term) => (item.full_name + item.employee_id).toLowerCase().includes(term)
+        );
+
+        // Setup Room Autocomplete
+        setupAutocomplete(
+            'assignRoomSearch', 
+            'assignRoomId', 
+            'roomResults', 
+            AutocompleteData.rooms, 
+            (item) => item.room_name, 
+            (item) => item.room_id,
+            (item, term) => (item.room_name + item.room_id).toLowerCase().includes(term)
+        );
+
+    } catch (err) {
+        console.error("Failed to load autocomplete data:", err);
+    }
+}
+
+function setupAutocomplete(inputId, hiddenId, resultsId, data, formatText, formatId, filterFn) {
+    const input = document.getElementById(inputId);
+    const hidden = document.getElementById(hiddenId);
+    const results = document.getElementById(resultsId);
+
+    if (!input || !results) return;
+
+    // Remove existing listeners to prevent duplicates if function called multiple times
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+    
+    const showResults = (term = '') => {
+        const filtered = term.length > 0 
+            ? data.filter(item => filterFn(item, term)).slice(0, 10)
+            : data.slice(0, 10);
+
+        if (filtered.length > 0) {
+            results.innerHTML = filtered.map(item => `
+                <div class="autocomplete-item" 
+                     data-id="${formatId(item)}" 
+                     data-display="${formatText(item).replace(/"/g, '&quot;')}">
+                    <span class="item-name">${formatText(item)}</span>
+                    <span class="item-id">ID: ${formatId(item)}</span>
+                </div>
+            `).join('');
+            results.classList.remove('d-none');
+        } else {
+            results.innerHTML = '<div class="p-3 text-muted small">No matches found</div>';
+            results.classList.remove('d-none');
+        }
+    };
+
+    newInput.addEventListener('input', () => {
+        hidden.value = ''; // Reset ID when typing
+        showResults(newInput.value.toLowerCase());
+    });
+
+    newInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showResults(newInput.value.toLowerCase());
+    });
+
+    newInput.addEventListener('focus', () => {
+        showResults(newInput.value.toLowerCase());
+    });
+
+    results.addEventListener('click', (e) => {
+        const item = e.target.closest('.autocomplete-item');
+        if (item && item.dataset.id) {
+            newInput.value = item.dataset.display;
+            hidden.value = item.dataset.id;
+            results.classList.add('d-none');
+            
+            // Visual feedback that it's selected
+            newInput.classList.add('border-success');
+            setTimeout(() => newInput.classList.remove('border-success'), 1000);
+        }
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!newInput.contains(e.target) && !results.contains(e.target)) {
+            results.classList.add('d-none');
+        }
+    });
+}
+
+// Global Listener for Modal
+document.addEventListener('DOMContentLoaded', () => {
+    const assignModal = document.getElementById('assignmentModal');
+    if (assignModal) {
+        assignModal.addEventListener('show.bs.modal', loadAutocompleteData);
+    }
+    const addAssetModal = document.getElementById('addAssetModal');
+    if (addAssetModal) {
+        addAssetModal.addEventListener('hidden.bs.modal', clearAddAssetModal);
+    }
+});

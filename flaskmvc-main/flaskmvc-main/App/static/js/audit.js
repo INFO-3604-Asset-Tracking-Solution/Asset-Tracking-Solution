@@ -6,14 +6,23 @@
 const Haptic = (function() {
     function vibrate(pattern) {
         if ('vibrate' in navigator) {
-            navigator.vibrate(pattern);
+            try {
+                const result = navigator.vibrate(pattern);
+                console.log(`[Haptic] Pattern ${JSON.stringify(pattern)} triggered. Result: ${result}`);
+            } catch (err) {
+                console.error('[Haptic] Error triggering vibration:', err);
+            }
+        } else {
+            console.warn('[Haptic] Vibration API not supported on this device/browser.');
         }
     }
 
     return {
         success: () => vibrate(50),
         discrepancy: () => vibrate([50, 50, 50]),
-        invalid: () => vibrate([50, 50, 50, 50, 50])
+        invalid: () => vibrate([50, 50, 50, 50, 50]),
+        // Used to "unlock" haptics during a user gesture
+        unlock: () => vibrate(1) 
     };
 })();
 
@@ -366,22 +375,29 @@ const QRScanner = (function () {
             clearInterval(scanInterval);
         }
 
-        // Parse the QR code data
-        // New format: asset_id|description|brand|model|serial_number
-        // Legacy format (old single-asset QRs): asset_id|assetName
-        const parts = data.split('|');
+        // Sanitize the raw data string first
+        const sanitizeInput = (str) => {
+            if (!str) return '';
+            // Strip any HTML tags and limit length for security
+            return str.replace(/<[^>]*>/g, '').trim().substring(0, 500);
+        };
+
+        const sanitizedData = sanitizeInput(data);
+        const parts = sanitizedData.split('|');
 
         // Extract all fields - at minimum we need the asset ID
-        const assetId = parts[0]?.trim();
-        const description = parts[1]?.trim() || '';
-        const brand = parts[2]?.trim() || '';
-        const model = parts[3]?.trim() || '';
-        const serialNumber = parts[4]?.trim() || '';
+        // IDs are further restricted to alphanumeric/dashes for backend safety
+        const assetId = sanitizeInput(parts[0]).replace(/[^a-zA-Z0-9-]/g, '');
+        const description = sanitizeInput(parts[1]);
+        const brand = sanitizeInput(parts[2]);
+        const model = sanitizeInput(parts[3]);
+        const serialNumber = sanitizeInput(parts[4]);
 
         // VALIDATION: If the asset ID is empty or malformed, it's an invalid scan
         if (!assetId || assetId.length < 2) {
             console.error('Scanned QR code contains invalid Asset ID:', assetId);
             Haptic.invalid();
+            UI.showScanFeedback('error', 'Invalid Scan', 'Malformed QR code data');
             UI.showMessage(`Invalid QR Code detected: "${data}"`, 'danger');
             
             if (isMobileDevice) {
@@ -895,6 +911,9 @@ async function ensureActiveAuditSession() {
      * Toggle room audit state (start/stop)
      */
     function toggleRoomAudit() {
+        // Unlock haptics on user interaction
+        Haptic.unlock();
+
         // Toggle room audit state
         if (!state.isRoomAuditActive) {
             startRoomAudit();
@@ -1192,7 +1211,8 @@ async function ensureActiveAuditSession() {
         }
 
         const searchInput = document.getElementById('searchInput');
-        const assetId = searchInput.value.trim();
+        // Sanitize manual input to prevent injections and illegal characters
+        const assetId = searchInput.value.replace(/[^a-zA-Z0-9-]/g, '').trim();
 
         if (!assetId) {
             UI.showMessage('Please enter an asset ID', 'warning');
@@ -1341,6 +1361,7 @@ async function ensureActiveAuditSession() {
         UI.updateScanCounter(state.expectedAssets);
 
         Haptic.success();
+        UI.showScanFeedback('success', 'Asset Found!', asset.description);
         UI.showMessage(`Asset found: ${asset.description} (${asset.id})`, 'success');
     }
 
@@ -1380,8 +1401,13 @@ async function ensureActiveAuditSession() {
         }
 
         Haptic.discrepancy();
+        const feedbackSubtitle = (formattedAsset.room_id && formattedAsset.room_id !== 'Unknown') 
+            ? `Assigned to: ${formattedAsset.room_id}` 
+            : 'Currently Unassigned';
+        
+        UI.showScanFeedback('discrepancy', 'Discrepancy', feedbackSubtitle);
         UI.showMessage(
-            `Asset found: ${formattedAsset.description} (${assetId}) - Not assigned to this room!`,
+            `Asset found: ${formattedAsset.description} (${assetId}) - ${feedbackSubtitle}`,
             'warning'
         );
     }
@@ -1415,6 +1441,7 @@ async function ensureActiveAuditSession() {
         UI.updateScannedAssetsTable(state.scannedAssets, state.currentRoom);
 
         Haptic.discrepancy();
+        UI.showScanFeedback('discrepancy', 'Unexpected Asset', assetId);
         UI.showMessage(`Unexpected asset added: ${assetId}`, 'warning');
     }
 
@@ -2066,6 +2093,49 @@ const UI = (function () {
         });
     }
 
+    /**
+     * Show a brief overlay feedback for a scan result
+     * @param {string} type - 'success', 'discrepancy', or 'error'
+     * @param {string} title - The main title text
+     * @param {string} subtitle - The secondary text
+     */
+    function showScanFeedback(type, title, subtitle = '') {
+        const overlay = document.getElementById('scanFeedbackOverlay');
+        const icon = document.getElementById('scanFeedbackIcon');
+        const titleEl = document.getElementById('scanFeedbackTitle');
+        const subtitleEl = document.getElementById('scanFeedbackSubtitle');
+
+        if (!overlay || !icon || !titleEl) return;
+
+        // Reset classes
+        overlay.className = 'scan-feedback-overlay';
+        
+        // Apply type-specific colors and icons
+        if (type === 'success') {
+            overlay.classList.add('scan-feedback-success');
+            icon.className = 'bi bi-check-circle-fill scan-feedback-icon';
+        } else if (type === 'discrepancy') {
+            overlay.classList.add('scan-feedback-discrepancy');
+            icon.className = 'bi bi-exclamation-triangle-fill scan-feedback-icon';
+        } else {
+            overlay.classList.add('scan-feedback-error');
+            icon.className = 'bi bi-x-circle-fill scan-feedback-icon';
+        }
+
+        titleEl.textContent = title;
+        subtitleEl.textContent = subtitle;
+
+        // Force reflow and show
+        overlay.classList.remove('show');
+        void overlay.offsetWidth;
+        overlay.classList.add('show');
+
+        // Hide after short delay
+        setTimeout(() => {
+            overlay.classList.remove('show');
+        }, 1200);
+    }
+
     // Return public methods
     return {
         displayExpectedAssets,
@@ -2076,7 +2146,8 @@ const UI = (function () {
         showMessage,
         updateScanningInterface,
         hideElements,
-        showElements
+        showElements,
+        showScanFeedback
     };
 })();
 

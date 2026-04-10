@@ -6,6 +6,7 @@ from App.controllers.assetassignment import create_asset_assignment, end_assignm
 from App.controllers.employee import get_all_employees_json
 from App.models.assetassignment import AssetAssignment
 from App.models.assetstatus import AssetStatus
+from App.controllers.room import get_all_rooms_json
 from datetime import datetime
 from functools import wraps
 from App.database import db
@@ -172,13 +173,15 @@ def delete_asset_route(asset_id):
 @inventory_views.route('/api/rooms/all', methods=['GET'])
 @jwt_required()
 def get_rooms():
-    from App.models.room import Room
-    rooms = Room.query.all()
-    return jsonify([{
-        'room_id': r.room_id,
-        'room_code': r.room_code,
-        'room_name': r.room_name
-    } for r in rooms])
+    return get_all_rooms_json() 
+
+
+# ----------EMPLOYEES-----------
+
+@inventory_views.route('/api/employees/all', methods=['GET'])
+@jwt_required()
+def get_employees():
+    return get_all_employees_json()
 
 
 # ----------ASSET ASSIGNMENTS-----------

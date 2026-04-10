@@ -36,7 +36,11 @@
                     <button class="btn btn-sm btn-outline-primary w-100 mb-2"
                             data-bs-toggle="modal"
                             data-bs-target="#addAssetModal">
+                        {% if current_user.role == 'Auditor' %}
+                        Propose Asset
+                        {% else %}
                         Add Asset
+                        {% endif %}
                     </button>
                     <button class="btn btn-sm btn-primary w-100 mb-2"
                             onclick="openAssignmentModal()">
@@ -122,7 +126,13 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add New Asset</h5>
+                    <h5 class="modal-title">
+                        {% if current_user.role == 'Auditor' %}
+                        Propose New Asset
+                        {% else %}
+                        Add New Asset
+                        {% endif %}
+                    </h5>
                     <button class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -144,7 +154,7 @@
                     <input id="addAssetSerialNumber" class="form-control mb-2" placeholder="Serial Number">
                     
                     <label class="form-label">Cost</label>
-                    <input id="addAssetCost" type="number" class="form-control mb-2" placeholder="Cost">
+                    <input id="addAssetCost" type="number" min="0" class="form-control mb-2" placeholder="Cost">
                     
                     <label class="form-label">
                         Status<span class="text-danger">*</span>
@@ -159,9 +169,14 @@
                 <div class="modal-footer">
                     <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-primary" 
-                            onclick="saveNewAsset()"
-                            {% if current_user.role == 'Auditor' %}disabled{% endif %}>
+                            id="saveAssetBtn"
+                            data-role="{{ current_user.role }}"
+                            onclick="saveNewAsset()">
+                        {% if current_user.role == 'Auditor' %}
+                        Propose
+                        {% else %}
                         Save
+                        {% endif %}
                     </button>
                 </div>
             </div>
@@ -177,23 +192,47 @@
                     <button class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label">
-                        Asset ID<span class="text-danger">*</span>
-                    </label>
-                    <small class="text-muted">
-                        (Please ensure the asset is added before creating an assignment.)
-                    </small>
-                    <input type="text" id="assignAssetId" class="form-control mb-2" placeholder="Enter Asset ID" required>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Asset ID<span class="text-danger">*</span>
+                        </label>
+                        <div class="autocomplete-container">
+                            <div class="input-with-icon">
+                                <input type="text" id="assignAssetSearch" class="form-control" placeholder="Search by ID or Description..." autocomplete="off">
+                                <i class="bi bi-search"></i>
+                            </div>
+                            <input type="hidden" id="assignAssetId">
+                            <div id="assetResults" class="autocomplete-results d-none"></div>
+                        </div>
+                    </div>
                     
-                    <label class="form-label">
-                        Employee ID<span class="text-danger">*</span>
-                    </label>
-                    <input type="text" id="assignEmployeeId" class="form-control mb-2" placeholder="Enter Employee ID" required>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Employee<span class="text-danger">*</span>
+                        </label>
+                        <div class="autocomplete-container">
+                            <div class="input-with-icon">
+                                <input type="text" id="assignEmployeeSearch" class="form-control" placeholder="Search by Name or ID..." autocomplete="off">
+                                <i class="bi bi-search"></i>
+                            </div>
+                            <input type="hidden" id="assignEmployeeId">
+                            <div id="employeeResults" class="autocomplete-results d-none"></div>
+                        </div>
+                    </div>
                     
-                    <label class="form-label">
-                        Room ID<span class="text-danger">*</span>
-                    </label>
-                    <input type="text" id="assignRoomId" class="form-control mb-2" placeholder="Enter Room ID" required>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Room<span class="text-danger">*</span>
+                        </label>
+                        <div class="autocomplete-container">
+                            <div class="input-with-icon">
+                                <input type="text" id="assignRoomSearch" class="form-control" placeholder="Search by Room Name or ID..." autocomplete="off">
+                                <i class="bi bi-search"></i>
+                            </div>
+                            <input type="hidden" id="assignRoomId">
+                            <div id="roomResults" class="autocomplete-results d-none"></div>
+                        </div>
+                    </div>
                    
                     <label class="form-label">
                         Condition<span class="text-danger">*</span>
@@ -258,22 +297,25 @@
 
                     </div>
                     
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Assignment ID</th>
-                                <th>Asset ID</th>
-                                <th>Employee ID</th>
-                                <th>Room ID</th>
-                                <th>Condition</th>
-                                <th>Assigned Date</th>
-                                <th>Return Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="assignmentsTableBody"></tbody>
-                    </table>
+                    <div class="table-scrollable-container">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Assignment ID</th>
+                                    <th>Asset ID</th>
+                                    <th>Description</th>
+                                    <th>Employee</th>
+                                    <th>Room</th>
+                                    <th>Condition</th>
+                                    <th>Assigned Date</th>
+                                    <th>Return Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignmentsTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="modal-footer">

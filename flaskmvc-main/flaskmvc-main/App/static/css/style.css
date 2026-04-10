@@ -261,16 +261,22 @@ body {
     }
 
     .mobile-menu-toggle {
-        background: none;
-        border: none;
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 1200;
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
         font-size: 1.5rem;
         color: #333;
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         display: flex;
         justify-content: center;
         align-items: center;
         cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
     .mobile-menu-backdrop {
