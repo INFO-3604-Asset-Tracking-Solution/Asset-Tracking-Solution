@@ -185,7 +185,7 @@ async function loadRoomsForModal() {
 async function saveNewAsset() {
     const saveBtn = document.getElementById('saveAssetBtn');
     const userRole = saveBtn?.dataset.role || '';
-    
+
     const isProposing = (userRole === 'Auditor');
     const endpoint = isProposing ? '/api/authorizations/propose' : '/api/asset/add';
 
@@ -194,10 +194,10 @@ async function saveNewAsset() {
         brand: document.getElementById('addAssetBrand')?.value,
         model: document.getElementById('addAssetModel')?.value,
         serial_number: document.getElementById('addAssetSerialNumber')?.value,
-        status_name: document.getElementById('addAssetStatus')?.value,     
+        status_name: document.getElementById('addAssetStatus')?.value,
         cost: document.getElementById('addAssetCost')?.value,
         notes: document.getElementById('addAssetNotes')?.value
-    };  
+    };
 
     if (!payload.description) {
         showMessage("Please fill required fields", "warning");
@@ -212,7 +212,7 @@ async function saveNewAsset() {
     try {
         const res = await fetch(endpoint, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
             credentials: 'same-origin'
         });
@@ -222,13 +222,13 @@ async function saveNewAsset() {
         if (res.ok && (data.success || isProposing)) {
             const successMsg = isProposing ? 'Asset proposal submitted for approval' : 'Asset created successfully';
             showMessage(successMsg, 'success');
-            
+
             const modalEl = document.getElementById('addAssetModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             modal.hide();
-            
+
             // Note: field clearing happens automatically via the 'hidden.bs.modal' listener
-            
+
             if (!isProposing) {
                 loadAssets();
             }
@@ -244,19 +244,19 @@ async function saveNewAsset() {
 
 function clearAddAssetModal() {
     const fields = [
-        'addAssetDescription', 
-        'addAssetBrand', 
-        'addAssetModel', 
-        'addAssetSerialNumber', 
-        'addAssetCost', 
+        'addAssetDescription',
+        'addAssetBrand',
+        'addAssetModel',
+        'addAssetSerialNumber',
+        'addAssetCost',
         'addAssetNotes'
     ];
-    
+
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    
+
     const statusSelect = document.getElementById('addAssetStatus');
     if (statusSelect) statusSelect.selectedIndex = 0;
 }
@@ -317,7 +317,7 @@ function displayAssets(assets) {
 
         // Checkbox change handler
         const checkbox = row.querySelector('.asset-select-checkbox');
-        checkbox.addEventListener('change', function() {
+        checkbox.addEventListener('change', function () {
             if (this.checked) {
                 selectedAssets.set(a.asset_id, a);
             } else {
@@ -336,7 +336,7 @@ function displayAssets(assets) {
     const selectAll = document.getElementById('selectAllCheckbox');
     if (selectAll) {
         selectAll.checked = false;
-        selectAll.onchange = function() {
+        selectAll.onchange = function () {
             if (this.checked) {
                 selectAllAssets(assets);
             } else {
@@ -603,7 +603,7 @@ async function updateAsset() {
 
     const res = await fetch(`/api/asset/${assetId}/update`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     });
 
@@ -624,20 +624,20 @@ async function deleteAsset(assetId) {
         method: 'POST',
         credentials: 'same-origin'
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('Asset deleted');
-            loadAssets();
-        } else {
-            alert(data.message || 'Failed to delete');
-        }
-    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('Asset deleted');
+                loadAssets();
+            } else {
+                alert(data.message || 'Failed to delete');
+            }
+        })
 
-    .catch (err => {
-        console.error(err);
-        alert('Server error');
-    });
+        .catch(err => {
+            console.error(err);
+            alert('Server error');
+        });
 }
 
 
@@ -671,7 +671,7 @@ async function submitAssignment() {
     try {
         const res = await fetch('/api/assignments', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
             credentials: 'same-origin'
         });
@@ -743,12 +743,8 @@ async function loadAssignments() {
 
         assignments.forEach(a => {
             const status = a.return_date ? 'Completed' : 'Active';
-
-            let badgeClass = 'bg-secondary';
-
-            if(status == 'Active') badgeClass = 'bg-success';
-            else if (status === 'Completed') badgeClass = 'bg-primary';
-           /* else badgeClass = 'bg-secondary'; */
+            const statusClass = a.return_date ? 'status-completed' : 'status-available';
+            const iconClass = a.return_date ? 'bi-check-circle-fill' : 'bi-play-circle-fill';
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -761,7 +757,8 @@ async function loadAssignments() {
                 <td>${formatDate(a.assignment_date)}</td>
                 <td>${a.return_date ? formatDate(a.return_date) : 'N/A'}</td>
                 <td>
-                    <span class="badge ${badgeClass}">
+                    <span class="status-badge ${statusClass}">
+                        <i class="bi ${iconClass}"></i>
                         ${status}
                     </span>
                 </td>
@@ -817,7 +814,7 @@ async function viewAssignments() {
                 const status = a.return_date ? 'Completed' : 'Active';
 
                 let badgeClass = 'bg-secondary';
-                if(status == 'Active') badgeClass = 'bg-success';
+                if (status == 'Active') badgeClass = 'bg-success';
                 else if (status === 'Completed') badgeClass = 'bg-primary';
 
                 const row = document.createElement('tr');
@@ -889,7 +886,7 @@ async function updateAssignmentStatus(assignmentId, status) {
     try {
         const res = await fetch(`/api/assignments/${assignmentId}/update`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status }),
             credentials: 'same-origin'
         });
@@ -977,14 +974,14 @@ function handleAssignmentSearch() {
     });
 }
 
-    /*HAMBUGER MENU*/
+/*HAMBUGER MENU*/
 
 document.addEventListener('DOMContentLoaded', () => {
     loadAssets()
 
     let lastChecked = "item";
     document.getElementById('searchInput')
-    ?.addEventListener('input', handleSearch);
+        ?.addEventListener('input', handleSearch);
 
     document.querySelectorAll('input[name="filterBy"]').forEach(radio => {
         radio.addEventListener('click', function () {
@@ -1055,33 +1052,33 @@ async function loadAutocompleteData() {
 
         // Setup Asset Autocomplete
         setupAutocomplete(
-            'assignAssetSearch', 
-            'assignAssetId', 
-            'assetResults', 
-            AutocompleteData.assets, 
-            (item) => `${item.asset_id} - ${item.description}`, 
+            'assignAssetSearch',
+            'assignAssetId',
+            'assetResults',
+            AutocompleteData.assets,
+            (item) => `${item.asset_id} - ${item.description}`,
             (item) => item.asset_id,
             (item, term) => (item.asset_id + item.description).toLowerCase().includes(term)
         );
 
         // Setup Employee Autocomplete
         setupAutocomplete(
-            'assignEmployeeSearch', 
-            'assignEmployeeId', 
-            'employeeResults', 
-            AutocompleteData.employees, 
-            (item) => item.full_name, 
+            'assignEmployeeSearch',
+            'assignEmployeeId',
+            'employeeResults',
+            AutocompleteData.employees,
+            (item) => item.full_name,
             (item) => item.employee_id,
             (item, term) => (item.full_name + item.employee_id).toLowerCase().includes(term)
         );
 
         // Setup Room Autocomplete
         setupAutocomplete(
-            'assignRoomSearch', 
-            'assignRoomId', 
-            'roomResults', 
-            AutocompleteData.rooms, 
-            (item) => item.room_name, 
+            'assignRoomSearch',
+            'assignRoomId',
+            'roomResults',
+            AutocompleteData.rooms,
+            (item) => item.room_name,
             (item) => item.room_id,
             (item, term) => (item.room_name + item.room_id).toLowerCase().includes(term)
         );
@@ -1101,9 +1098,9 @@ function setupAutocomplete(inputId, hiddenId, resultsId, data, formatText, forma
     // Remove existing listeners to prevent duplicates if function called multiple times
     const newInput = input.cloneNode(true);
     input.parentNode.replaceChild(newInput, input);
-    
+
     const showResults = (term = '') => {
-        const filtered = term.length > 0 
+        const filtered = term.length > 0
             ? data.filter(item => filterFn(item, term)).slice(0, 10)
             : data.slice(0, 10);
 
@@ -1143,7 +1140,7 @@ function setupAutocomplete(inputId, hiddenId, resultsId, data, formatText, forma
             newInput.value = item.dataset.display;
             hidden.value = item.dataset.id;
             results.classList.add('d-none');
-            
+
             // Visual feedback that it's selected
             newInput.classList.add('border-success');
             setTimeout(() => newInput.classList.remove('border-success'), 1000);

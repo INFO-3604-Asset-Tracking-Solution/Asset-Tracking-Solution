@@ -11,16 +11,12 @@
         border: none;
     }
     .status-badge {
-        padding: 5px 12px;
+        padding: 4px 10px;
         border-radius: 20px;
         font-weight: 500;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
-    .status-found { background-color: #d1e7dd; color: #0f5132; }
-    .status-missing { background-color: #ffe6e6; color: #cc0000; }
-    .status-relocated { background-color: #cfe2ff; color: #084298; }
-    .status-pending { background-color: #fff3cd; color: #856404; }
-    .status-lost { background-color: #e2e3e5; color: #41464b; }
+
     
     .phase-indicator {
         display: flex;
@@ -117,7 +113,8 @@
                 <h5 class="card-title fw-semibold"><i class="bi bi-info-circle text-primary"></i> Audit Info</h5>
                 <hr>
                 <p class="mb-2"><strong>Status:</strong> 
-                    <span class="badge {% if audit.status == 'COMPLETED' %}bg-success{% else %}bg-primary{% endif %}">
+                    <span class="status-badge {% if audit.status == 'COMPLETED' %}status-completed{% else %}status-in_progress{% endif %}">
+                        <i class="bi {% if audit.status == 'COMPLETED' %}bi-check-circle-fill{% else %}bi-arrow-repeat{% endif %}"></i>
                         {{ audit.status }}
                     </span>
                 </p>
@@ -268,13 +265,13 @@
                                     </td>
                                     <td>
                                         {% if room.expected_count == 0 and room.unexpected_here_count == 0 %}
-                                            <span class="badge bg-light text-dark border">N/A</span>
+                                            <span class="status-badge status-pending">N/A</span>
                                         {% elif is_complete %}
-                                            <span class="badge bg-success">Complete</span>
+                                            <span class="status-badge status-completed"><i class="bi bi-check-circle-fill"></i> Complete</span>
                                         {% elif total_processed > 0 %}
-                                            <span class="badge bg-info">In Progress</span>
+                                            <span class="status-badge status-in_progress"><i class="bi bi-arrow-repeat"></i> In Progress</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">Pending</span>
+                                            <span class="status-badge status-pending"><i class="bi bi-clock"></i> Pending</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -309,7 +306,7 @@
                                         <small class="text-muted">{{ asset.asset_description }}</small>
                                     </td>
                                     <td>Room {{ asset.expected_room }}</td>
-                                    <td><span class="badge bg-secondary">Pending Scan</span></td>
+                                    <td><span class="status-badge status-pending"><i class="bi bi-clock"></i> Pending Scan</span></td>
                                 </tr>
                             {% else %}
                                 <tr><td colspan="3" class="text-center text-muted py-4">All active assets have been processed!</td></tr>
@@ -421,7 +418,8 @@
                                     <td>Room {{ asset.expected_room }}</td>
                                     <td>{{ asset.missing_since }}</td>
                                     <td>
-                                        <span class="badge {% if audit.status == 'COMPLETED' %}status-lost{% else %}status-missing{% endif %}">
+                                        <span class="status-badge {% if audit.status == 'COMPLETED' %}status-lost{% else %}status-missing{% endif %}">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
                                             {% if audit.status == 'COMPLETED' %}LOST{% else %}MISSING{% endif %}
                                         </span>
                                     </td>

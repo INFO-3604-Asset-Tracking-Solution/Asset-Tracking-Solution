@@ -3,156 +3,64 @@
 {% block title %}Asset Authorizations - iGOVTT{% endblock %}
 
 {% block page_css %}
-<style>
-    .auth-container {
-        padding: 2rem;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        min-height: calc(100vh - 60px);
-    }
-
-    .page-header {
-        margin-bottom: 2rem;
-    }
-
-    .page-title {
-        font-weight: 700;
-        color: #2d3436;
-        font-size: 1.75rem;
-        position: relative;
-    }
-
-    .page-title::after {
-        content: '';
-        position: absolute;
-        bottom: -8px;
-        left: 0;
-        width: 50px;
-        height: 4px;
-        background: linear-gradient(90deg, #6c5ce7 0%, #a29bfe 100%);
-        border-radius: 2px;
-    }
-
-    /* Tab Styling */
-    .nav-tabs {
-        border-bottom: none;
-        gap: 1rem;
-        margin-bottom: 1.5rem !important;
-    }
-
-    .nav-tabs .nav-link {
-        border: none;
-        color: #b2bec3;
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 0.85rem;
-        letter-spacing: 1px;
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        background: rgba(255, 255, 255, 0.5);
-    }
-
-    .nav-tabs .nav-link:hover {
-        background: rgba(108, 92, 231, 0.05);
-        color: #6c5ce7;
-    }
-
-    .nav-tabs .nav-link.active {
-        background: #6c5ce7;
-        color: white;
-        box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
-    }
-
-    .auth-card {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
-
-    .table {
-        margin-bottom: 0;
-    }
-
-    .table thead th {
-        background-color: rgba(248, 249, 250, 0.5);
-        border-bottom: 2px solid #eee;
-        color: #b2bec3;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 700;
-        padding: 1.25rem 1.5rem;
-    }
-
-    .table tbody td {
-        padding: 1.25rem 1.5rem;
-        vertical-align: middle;
-        color: #2d3436;
-        font-weight: 500;
-        border-bottom: 1px solid #eee;
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 0.35rem 0.85rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .status-pending { background-color: #fff4e5; color: #f39c12; }
-    .status-approved { background-color: #d1f7e6; color: #10ac84; }
-    .status-rejected { background-color: #ffeaa7; color: #d63031; }
-
-    .btn-approve {
-        background: linear-gradient(90deg, #00b894 0%, #55efc4 100%);
-        color: white; border: none; font-weight: 600;
-    }
-    .btn-reject {
-        background: linear-gradient(90deg, #fab1a0 0%, #ff7675 100%);
-        color: white; border: none; font-weight: 600;
-    }
-    .btn-action {
-        padding: 0.4rem 0.8rem;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        transition: all 0.3s ease;
-    }
-    .btn-action:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        color: white;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-    }
-
-    .text-dim { color: #b2bec3; font-size: 0.85rem; }
-    
-    .badge-count {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.5rem;
-        margin-left: 0.5rem;
-        border-radius: 10px;
-        background: rgba(0,0,0,0.1);
-    }
-    .nav-link.active .badge-count {
-        background: rgba(255,255,255,0.2);
-    }
+    <link href="{{ url_for('static', filename='css/inventory.css') }}" rel="stylesheet">
+    <style>
+        .proposer-avatar {
+            width: 32px;
+            height: 32px;
+            background: #f8fafc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+        }
+        .nav-tabs {
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 20px;
+        }
+        .nav-link {
+            border: none !important;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 0.75rem 1.25rem !important;
+            border-radius: 0 !important;
+        }
+        .nav-link.active {
+            color: var(--primary-blue) !important;
+            border-bottom: 2px solid var(--primary-blue) !important;
+            background: transparent !important;
+        }
+        .badge-count {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+        .nav-link.active .badge-count {
+            background: var(--primary-blue);
+            color: white;
+        }
+    </style>
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="auth-container">
-    <div class="page-header">
-        <h1 class="page-title">Asset Authorizations</h1>
+    <h2 class="mb-4">Asset Authorizations</h2>
+    
+    <div class="search-container">
+        <div class="search-bar">
+            <input type="text" class="form-control" id="authSearchInput" placeholder="Search Proposals...">
+            <button class="btn btn-primary">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+        <div class="action-container">
+            <!-- No direct actions here yet, but keeping same structure -->
+        </div>
     </div>
 
     <!-- Tabs Navigation -->
@@ -173,9 +81,8 @@
     <div class="tab-content" id="authTabsContent">
         <!-- PENDING TAB -->
         <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
-            <div class="auth-card">
-                <div class="table-responsive">
-                    <table class="table align-middle">
+            <div class="inventory-table">
+                <table class="table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Asset Description</th>
@@ -200,8 +107,8 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="avatar-sm me-2 bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                            <i class="bi bi-person text-secondary"></i>
+                                        <div class="proposer-avatar me-2">
+                                            <i class="bi bi-person"></i>
                                         </div>
                                         <span>{{ auth.proposer.username if auth.proposer else 'Unknown' }}</span>
                                     </div>
@@ -220,7 +127,7 @@
                                     </button>
                                     {% endif %}
                                     {% if auth.proposer.user_id == current_user.user_id %}
-                                    <button class="btn btn-action btn-outline-danger btn-delete-proposal" data-id="{{ auth.authorization_id }}" title="Delete proposal">
+                                    <button class="btn btn-sm btn-outline-danger btn-delete-proposal" data-id="{{ auth.authorization_id }}" title="Delete proposal">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     {% endif %}
@@ -243,9 +150,8 @@
 
         <!-- HISTORY TAB -->
         <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
-            <div class="auth-card">
-                <div class="table-responsive">
-                    <table class="table align-middle">
+            <div class="inventory-table">
+                <table class="table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>Asset</th>
@@ -267,7 +173,7 @@
                                 <td>{{ auth.proposer.username if auth.proposer else 'Unknown' }}</td>
                                 <td>
                                     <span class="status-badge status-{{ auth.authorization_status|lower }}">
-                                        <i class="bi {% if auth.authorization_status == 'Approved' %}bi-check-circle{% elif auth.authorization_status == 'Rejected' %}bi-x-circle{% else %}bi-clock{% endif %} me-1"></i>
+                                        <i class="bi {% if auth.authorization_status == 'Approved' %}bi-check-circle-fill{% elif auth.authorization_status == 'Rejected' %}bi-x-circle-fill{% else %}bi-clock-fill{% endif %}"></i>
                                         {{ auth.authorization_status }}
                                     </span>
                                 </td>
@@ -293,9 +199,9 @@
                             {% endif %}
                             {% else %}
                             <tr>
-                                <td colspan="6" class="empty-state">
-                                    <i class="bi bi-journal-text text-dim display-4 d-block mb-3"></i>
-                                    <h5 class="text-dim">No History Available</h5>
+                                <td colspan="6" class="p-5 text-center text-muted">
+                                    <i class="bi bi-journal-text d-block mb-3" style="font-size: 3rem; opacity: 0.3;"></i>
+                                    <h5>No History Available</h5>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -394,6 +300,19 @@
             alert('Failed to connect to server.');
         }
     }
+
+    // Search filter
+    function filterProposals() {
+        const input = document.getElementById('authSearchInput');
+        const filter = input.value.toLowerCase();
+        const rows = document.querySelectorAll('.inventory-table tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    }
+    document.getElementById('authSearchInput')?.addEventListener('keyup', filterProposals);
 </script>
 {% endblock %}
 

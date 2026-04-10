@@ -148,6 +148,50 @@ body {
     background: var(--warning-color);
 }
 
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    gap: 6px;
+}
+
+.status-badge.status-completed,
+.status-badge.status-approved,
+.status-badge.status-available {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #1b6d30;
+    border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.status-badge.status-in_progress,
+.status-badge.status-misplaced {
+    background-color: rgba(243, 156, 18, 0.1);
+    color: #a05d05;
+    border: 1px solid rgba(243, 156, 18, 0.2);
+}
+
+.status-badge.status-pending,
+.status-badge.status-under_maintenance {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: #1a5a8a;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.status-badge.status-rejected,
+.status-badge.status-missing,
+.status-badge.status-lost {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #8b1b26;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+
 /* Table Styling */
 .inventory-table {
     background: white;
