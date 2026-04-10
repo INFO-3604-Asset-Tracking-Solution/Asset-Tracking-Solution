@@ -120,12 +120,12 @@ def update_asset_details_endpoint(asset_id):
 
     updated_asset = update_asset_details(
         asset_id,
-        data.get('description'),
-        data.get('model'),
-        data.get('brand'),
-        data.get('serial_number'),
-        None,
-        data.get('notes')
+        description=data.get('description'),
+        model=data.get('model'),
+        brand=data.get('brand'),
+        serial_number=data.get('serial_number'),
+        cost=None,
+        notes=data.get('notes')
     )
 
     if not updated_asset:

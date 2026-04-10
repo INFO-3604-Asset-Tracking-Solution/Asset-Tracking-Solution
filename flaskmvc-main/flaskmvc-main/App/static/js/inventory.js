@@ -188,7 +188,7 @@ async function saveNewAsset() {
         brand: document.getElementById('addAssetBrand')?.value,
         model: document.getElementById('addAssetModel')?.value,
         serial_number: document.getElementById('addAssetSerialNumber')?.value,
-        status_name: document.getElementById('addAssetStatus')?.value,     
+        status_name: "Available",        
         cost: document.getElementById('addAssetCost')?.value,
         notes: document.getElementById('addAssetNotes')?.value
     };  
@@ -270,40 +270,30 @@ function displayAssets(assets) {
     });
 }
 
-function handleSearch() {
+
+function handleSearch() {    
     const input = document.getElementById('searchInput');
     const term = input?.value.toLowerCase() || '';
+    filterState.searchTerm = term;
 
-    const filterBy = document.querySelector('input[name="filterBy"]:checked')?.value;
+    document.querySelectorAll('#assetTableBody tr').forEach(row => {        
+        let matchesSearch = false;
 
-    document.querySelectorAll('#assetTableBody tr').forEach(row => {
-
-        let text = '';
-
-        switch (filterBy) {
-            case 'item':
-                text = row.children[0]?.textContent.toLowerCase();
-                break;
-
-            case 'assetTag':
-                text = row.children[1]?.textContent.toLowerCase();
-                break;
-
-            case 'brandModel':
-                text = row.children[2]?.textContent.toLowerCase();
-                break;
-
-            case 'serialNumber':
-                text = row.children[3]?.textContent.toLowerCase();
-                break;
-
-            default:
-                text = row.textContent.toLowerCase();
+        if (filterState.columnFilter !== null) {
+            // Search ONLY selected column
+            const cell = row.querySelector(`td:nth-child(${filterState.columnFilter + 1})`);
+            const text = cell?.textContent.toLowerCase() || '';
+            matchesSearch = text.includes(term);
+        }else{
+            // Search entire row
+            const text = row.textContent.toLowerCase();
+            matchesSearch = text.includes(term);
         }
 
-        row.style.display = text.includes(term) ? '' : 'none';
+        row.style.display = matchesSearch ? '' : 'none';
     });
 }
+
 
 async function updateAsset() {
     const assetId = document.getElementById("assetId").value;
@@ -316,19 +306,34 @@ async function updateAsset() {
         notes: document.getElementById("notes").value
     };
 
-    const res = await fetch(`/api/asset/${assetId}/update`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
+    try {
+        const res = await fetch(`/api/asset/${assetId}/update`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify(payload)
+        });
 
-    const data = await res.json();
+        let data;
+        try {
+            data = await res.json();
+        } catch (err) {
+            const text = await res.text();
+            console.error("RAW RESPONSE:", text);
+            alert("Server error (non-JSON response)");
+            return;
+        }
 
-    if (data.success) {
-        alert("Asset updated successfully");
-        window.location.href = "/inventory";
-    } else {
-        alert(data.message || "Update failed");
+        if (res.ok && data.success) {
+            alert("Asset updated successfully");
+            window.location.href = "/inventory";
+        } else {
+            alert(data.message || "Update failed");
+        }
+
+    } catch (err) {
+        console.error(err);
+        alert("Network/Server error");
     }
 }
 
@@ -685,24 +690,8 @@ function handleAssignmentSearch() {
     /*HAMBUGER MENU*/
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadAssets()
-
-    let lastChecked = "item";
-    document.getElementById('searchInput')
-    ?.addEventListener('input', handleSearch);
-
-    document.querySelectorAll('input[name="filterBy"]').forEach(radio => {
-        radio.addEventListener('click', function () {
-            if (this.value === lastChecked) {
-                this.checked = false;
-                lastChecked = null;
-            } else {
-                lastChecked = this.value;
-            }
-
-            handleSearch();
-        });
-    });
+    setupEvents();
+    loadAssets();
 
     const menuBtn = document.getElementById('menuBtn');
     const menu = document.getElementById('menu');
@@ -728,6 +717,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function setupEvents() {
+    document.querySelectorAll('.status-filter').forEach(btn => {
+        btn.addEventListener('click', () =>
+            filterState.addStatusFilter(btn.dataset.status)
+        );
+    });
+    document.querySelectorAll('.column-filter').forEach(btn => {
+        btn.addEventListener('click', () =>
+            filterState.setColumnFilter(parseInt(btn.dataset.column))
+        );
+    });
 
     const search = document.getElementById('searchInput');
     if (search) search.addEventListener('input', handleSearch);
