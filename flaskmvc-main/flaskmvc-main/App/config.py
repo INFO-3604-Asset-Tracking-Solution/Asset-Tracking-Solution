@@ -39,8 +39,8 @@ def load_config(app, overrides):
             else:
                 print("Warning: Production ENV set but missing PostgreSQL ENV variables. Falling back to default.")
                 app.config.from_object('App.default_config')
-    # else: # Development or other envs will use the default loaded earlier
-        # print(f"Non-production ENV ('{app.config['ENV']}'), using default DB URI.")
+    else:
+        print("Development ENV set, using default DB URI.")
 
     # === End Production Database Handling ===
 
