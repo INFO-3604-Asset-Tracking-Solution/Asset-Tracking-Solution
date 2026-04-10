@@ -40,26 +40,6 @@
     </div>
 </div>
 
-<!-- Audit Method Selection -->
-<div class="audit-method-buttons" id="auditMethodButtons" style="display: none;">
-    <button class="btn btn-light audit-method-btn" data-method="rfid">
-        <img src="{{ url_for('static', filename='images/rfid_icon.svg') }}" alt="RFID">
-        <span class="btn-text">RFID</span>
-    </button>
-    <button class="btn btn-light audit-method-btn" data-method="barcode">
-        <img src="{{ url_for('static', filename='images/barcode_icon.svg') }}" alt="Barcode">
-        <span class="btn-text">Barcode</span>
-    </button>
-    <button class="btn btn-light audit-method-btn" data-method="qrcode">
-        <img src="{{ url_for('static', filename='images/qrcode_icon.svg') }}" alt="QR Code">
-        <span class="btn-text">QR Code</span>
-    </button>
-    <button class="btn btn-primary audit-method-btn" data-method="manual">
-        <img src="{{ url_for('static', filename='images/manual_icon.svg') }}" alt="Manual">
-        <span class="btn-text">Manual</span>
-    </button>
-</div>
-
 <!-- Search Container -->
 <div class="search-container" id="searchContainer" style="display: none;">
     <!-- Scan Indicators -->
@@ -75,6 +55,26 @@
         </div>
     </form>
     
+    <!-- Audit Method Selection -->
+    <div class="audit-method-buttons" id="auditMethodButtons" style="display: none;">
+        <button class="btn btn-light audit-method-btn" data-method="rfid">
+            <img src="{{ url_for('static', filename='images/rfid_icon.svg') }}" alt="RFID">
+            <span class="btn-text">RFID</span>
+        </button>
+        <button class="btn btn-light audit-method-btn" data-method="barcode">
+            <img src="{{ url_for('static', filename='images/barcode_icon.svg') }}" alt="Barcode">
+            <span class="btn-text">Barcode</span>
+        </button>
+        <button class="btn btn-light audit-method-btn" data-method="qrcode">
+            <img src="{{ url_for('static', filename='images/qrcode_icon.svg') }}" alt="QR Code">
+            <span class="btn-text">QR Code</span>
+        </button>
+        <button class="btn btn-primary audit-method-btn" data-method="manual">
+            <img src="{{ url_for('static', filename='images/manual_icon.svg') }}" alt="Manual">
+            <span class="btn-text">Manual</span>
+        </button>
+    </div>
+
     <!-- Audit Controls -->
     <div class="audit-controls mt-3">
         <div class="d-flex gap-2 w-100 align-items-stretch">
