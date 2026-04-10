@@ -30,7 +30,8 @@ def audit_list():
 def audit_detail(audit_id):
     audit = get_audit_by_id(audit_id)
     report = generate_final_report(audit_id)
-    return render_template('audit_detail.html', audit=audit, report=report)
+    daily_reports = generate_daily_interim_reports_for_audit(audit_id)
+    return render_template('audit_detail.html', audit=audit, report=report, daily_reports=daily_reports)
 
 
 @audit_views.route('/start-audit', methods=['GET'])
@@ -338,6 +339,12 @@ def get_audit_by_id_api(audit_id):
 def generate_iterim_report_api(audit_id):
     audit = generate_interim_report(audit_id)
     return jsonify(audit), 200
+
+@audit_views.route('/api/audit/<audit_id>/daily-interim-reports', methods=['GET'])
+@jwt_required()
+def generate_daily_iterim_reports_api(audit_id):
+    reports = generate_daily_interim_reports_for_audit(audit_id)
+    return jsonify(reports), 200
 
 
 @audit_views.route('/api/compare-audits/<audit_id>/<audit_id2>', methods=['GET'])

@@ -202,6 +202,9 @@
         <button class="nav-link active" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab"><i class="bi bi-buildings text-success"></i> Room Progress</button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button" role="tab"><i class="bi bi-calendar-day text-dark"></i> Daily Progress</button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="relocated-tab" data-bs-toggle="tab" data-bs-target="#relocated" type="button" role="tab"><i class="bi bi-geo-alt text-primary"></i> Relocated ({{ relocated_count }})</button>
     </li>
     <li class="nav-item" role="presentation">
@@ -465,10 +468,49 @@
             </div>
         </div>
     </div>
+
+    <!-- Daily Progress Tab -->
+    <div class="tab-pane fade" id="daily" role="tabpanel">
+        <div class="card audit-summary-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <button class="btn btn-outline-secondary" id="prevDayBtn"><i class="bi bi-chevron-left"></i></button>
+                    <h5 class="mb-0 fw-bold" id="currentDayLabel">Date</h5>
+                    <button class="btn btn-outline-secondary" id="nextDayBtn"><i class="bi bi-chevron-right"></i></button>
+                </div>
+                
+                <div class="row text-center g-3 mb-4" id="dailyStatsContainer">
+                    <!-- JS will inject stats here -->
+                </div>
+
+                <h6 class="fw-bold">Room Progress This Day</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Room</th>
+                                <th>Expected</th>
+                                <th class="text-success">Found</th>
+                                <th class="text-primary">Relocated</th>
+                                <th class="text-danger">Missing</th>
+                                <th class="text-info">Unscanned</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyRoomsContainer">
+                            <!-- JS will inject rooms here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script id="dailyReportsData" type="application/json">
+    {{ daily_reports | tojson | safe }}
+</script>
 <script>
 const AuditDashboard = {
     async resolveRelocation(checkId, foundRoomId) {
@@ -489,5 +531,132 @@ const AuditDashboard = {
         } catch(e) { console.error(e); }
     }
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    let rawData = document.getElementById('dailyReportsData').textContent;
+    let dailyData = null;
+    try {
+        dailyData = JSON.parse(rawData);
+    } catch(e) {
+        console.error("Could not parse daily reports data.");
+    }
+    
+    if (dailyData && dailyData.dates.length > 0) {
+        let currentDateIndex = dailyData.dates.length - 1; // Default to latest day
+        
+        const renderDailyReport = (index) => {
+            const dateStr = dailyData.dates[index];
+            const report = dailyData.reports[dateStr];
+            document.getElementById('currentDayLabel').textContent = dateStr;
+            
+            // disable buttons appropriately
+            document.getElementById('prevDayBtn').disabled = index === 0;
+            document.getElementById('nextDayBtn').disabled = index === dailyData.dates.length - 1;
+            
+            if(!report) return;
+
+            let expected_total = report.expected_total;
+            let found_count = report.found_correct.length;
+            let missing_count = report.missing.length;
+            let relocated_count = report.relocated.length;
+            let condition_count = report.condition_discrepancy.length;
+
+            const statsHtml = `
+                <div class="col"><div class="p-3 border rounded bg-light"><div class="fs-4 fw-bold text-success">${found_count}</div><div class="text-muted small text-uppercase">Found</div></div></div>
+                <div class="col"><div class="p-3 border rounded bg-light"><div class="fs-4 fw-bold text-primary">${relocated_count}</div><div class="text-muted small text-uppercase">Relocated</div></div></div>
+                <div class="col"><div class="p-3 border rounded bg-light"><div class="fs-4 fw-bold text-danger">${missing_count}</div><div class="text-muted small text-uppercase">Missing</div></div></div>
+                <div class="col"><div class="p-3 border rounded bg-light"><div class="fs-4 fw-bold text-info">${report.unscanned.length}</div><div class="text-muted small text-uppercase">Unscanned</div></div></div>
+                <div class="col"><div class="p-3 border rounded bg-light"><div class="fs-4 fw-bold text-warning">${condition_count}</div><div class="text-muted small text-uppercase">Condition</div></div></div>
+            `;
+            document.getElementById('dailyStatsContainer').innerHTML = statsHtml;
+            
+            let roomsHtml = '';
+            let roomIdx = 0;
+            for(const room of report.room_breakdown) {
+                // only show room if there's activity or expected assets
+                if (room.expected_count > 0 || room.found_correct_count > 0 || room.relocated_out_count > 0 || room.unexpected_here_count > 0 || room.missing_count > 0) {
+                    const targetId = `roomDetails-${room.room_id}-${roomIdx}`;
+                    roomIdx++;
+                    
+                    // Group assets for this room
+                    const roomUnscanned = report.unscanned.filter(a => String(a.expected_room) === String(room.room_id));
+                    const roomFound = report.found_correct.filter(a => String(a.expected_room) === String(room.room_id));
+                    const roomMissing = report.missing.filter(a => String(a.expected_room) === String(room.room_id));
+                    const roomRelocated = report.relocated.filter(a => String(a.expected_room) === String(room.room_id));
+                    
+                    let assetDetailsHtml = `
+                        <div class="row g-3 text-start">
+                            <div class="col-md-3">
+                                <h6 class="fw-bold text-success border-bottom pb-2">Found Correct</h6>
+                                <ul class="list-group list-group-flush small">
+                                    ${roomFound.length > 0 ? roomFound.map(a => `<li class="list-group-item bg-transparent text-success py-1"><i class="bi bi-check-circle me-2"></i><strong>${a.asset_id}</strong> - ${a.asset_description}</li>`).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
+                                </ul>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="fw-bold text-primary border-bottom pb-2">Found Elsewhere</h6>
+                                <ul class="list-group list-group-flush small">
+                                    ${roomRelocated.length > 0 ? roomRelocated.map(a => `<li class="list-group-item bg-transparent text-primary py-1"><i class="bi bi-geo-alt me-2"></i><strong>${a.asset_id}</strong> - Found in Room ${a.found_room_id}</li>`).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
+                                </ul>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="fw-bold text-danger border-bottom pb-2">Marked Missing</h6>
+                                <ul class="list-group list-group-flush small">
+                                    ${roomMissing.length > 0 ? roomMissing.map(a => `<li class="list-group-item bg-transparent text-danger py-1"><i class="bi bi-x-circle me-2"></i><strong>${a.asset_id}</strong> - ${a.asset_description}</li>`).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
+                                </ul>
+                            </div>
+                            <div class="col-md-3">
+                                <h6 class="fw-bold text-secondary border-bottom pb-2">Unscanned</h6>
+                                <ul class="list-group list-group-flush small">
+                                    ${roomUnscanned.length > 0 ? roomUnscanned.map(a => `<li class="list-group-item bg-transparent text-muted py-1"><i class="bi bi-circle me-2"></i><strong>${a.asset_id}</strong> - ${a.asset_description}</li>`).join('') : '<li class="list-group-item bg-transparent text-muted py-1">All scanned!</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+
+                    roomsHtml += `
+                        <tr data-bs-toggle="collapse" data-bs-target="#${targetId}" class="accordion-toggle" style="cursor: pointer;" title="Click to view assets">
+                            <td>
+                                <button class="btn btn-sm btn-link text-decoration-none p-0 me-2 text-dark accordion-btn">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                                <strong>${room.room_name}</strong>
+                            </td>
+                            <td>${room.expected_count}</td>
+                            <td><span class="badge bg-success">${room.found_correct_count}</span></td>
+                            <td><span class="badge bg-primary">${room.relocated_out_count}</span></td>
+                            <td><span class="badge bg-danger">${room.missing_count}</span></td>
+                            <td><span class="badge bg-secondary">${room.unscanned_count}</span></td>
+                        </tr>
+                        <tr>
+                            <td colspan="6" class="p-0 border-0">
+                                <div class="collapse p-3 bg-light border-bottom" id="${targetId}">
+                                    ${assetDetailsHtml}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+            if (!roomsHtml) roomsHtml = '<tr><td colspan="4" class="text-center text-muted">No room activity recorded on this day.</td></tr>';
+            document.getElementById('dailyRoomsContainer').innerHTML = roomsHtml;
+        };
+
+        renderDailyReport(currentDateIndex);
+
+        document.getElementById('prevDayBtn').addEventListener('click', () => {
+            if(currentDateIndex > 0) {
+                currentDateIndex--;
+                renderDailyReport(currentDateIndex);
+            }
+        });
+
+        document.getElementById('nextDayBtn').addEventListener('click', () => {
+            if(currentDateIndex < dailyData.dates.length - 1) {
+                currentDateIndex++;
+                renderDailyReport(currentDateIndex);
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

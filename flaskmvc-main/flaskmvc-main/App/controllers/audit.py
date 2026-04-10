@@ -77,15 +77,23 @@ def get_audit_status():
         return 'NO_ACTIVE_AUDIT'
     return audit.get_json()['status']
 
-def generate_audit_report(audit_id):
+def generate_audit_report(audit_id, end_date=None):
     audit = get_audit_by_id(audit_id)
     if not audit:
         return None
         
-    # Get all check events for this audit
-    check_events = CheckEvent.query.filter_by(audit_id=audit_id).all()
-    # Get all missing records for this audit
-    missing_records = MissingDevice.query.filter_by(audit_id=audit_id).all()
+    # Get all check events for this audit up to the end_date if provided
+    check_query = CheckEvent.query.filter_by(audit_id=audit_id)
+    missing_query = MissingDevice.query.filter_by(audit_id=audit_id)
+
+    if end_date:
+        import datetime
+        end_of_day = datetime.datetime.combine(end_date, datetime.time.max)
+        check_query = check_query.filter(CheckEvent.timestamp <= end_of_day)
+        missing_query = missing_query.filter(MissingDevice.timestamp <= end_of_day)
+
+    check_events = check_query.all()
+    missing_records = missing_query.all()
     
     # We define global scope as all currently active assignments. 
     # (If the audit is old, active assignments might have changed, but we assume
@@ -226,4 +234,50 @@ def generate_interim_report(audit_id):
 def generate_final_report(audit_id):
     return generate_audit_report(audit_id)
 
+def get_audit_active_dates(audit_id):
+    check_dates = db.session.query(db.func.date(CheckEvent.timestamp)).filter_by(audit_id=audit_id).distinct().all()
+    missing_dates = db.session.query(db.func.date(MissingDevice.timestamp)).filter_by(audit_id=audit_id).distinct().all()
     
+    import datetime
+    def to_date(d):
+        if not d: return None
+        if isinstance(d, str):
+            try:
+                return datetime.datetime.strptime(d.split(' ')[0], '%Y-%m-%d').date()
+            except ValueError:
+                return None
+        if isinstance(d, datetime.datetime):
+            return d.date()
+        return d
+
+    dates = set()
+    for item in check_dates:
+        parsed = to_date(item[0])
+        if parsed: dates.add(parsed)
+        
+    for item in missing_dates:
+        parsed = to_date(item[0])
+        if parsed: dates.add(parsed)
+        
+    # Also add the audit start date
+    audit = get_audit_by_id(audit_id)
+    if audit and audit.start_date:
+        parsed = to_date(audit.start_date)
+        if parsed: dates.add(parsed)
+        
+    return sorted(list(dates))
+
+def generate_daily_interim_reports_for_audit(audit_id):
+    dates = get_audit_active_dates(audit_id)
+    reports_by_date = {}
+    
+    for d in dates:
+        date_str = d.strftime('%Y-%m-%d')
+        report = generate_audit_report(audit_id, end_date=d)
+        if report:
+            reports_by_date[date_str] = report
+            
+    return {
+        "dates": [d.strftime('%Y-%m-%d') for d in dates],
+        "reports": reports_by_date
+    }
