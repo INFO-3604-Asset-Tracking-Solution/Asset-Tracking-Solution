@@ -70,11 +70,11 @@ if (workbox) {
         })
     );
 
-    // Cache static assets (CSS, JS) using Stale While Revalidate
+    // Cache static assets (CSS, JS) using Network First
     workbox.routing.registerRoute(
         ({ request }) => request.destination === 'style' || request.destination === 'script' || request.destination === 'worker',
-        new workbox.strategies.StaleWhileRevalidate({
-            cacheName: 'site-static-v2',
+        new workbox.strategies.NetworkFirst({
+            cacheName: 'site-static-v3',
         })
     );
 
