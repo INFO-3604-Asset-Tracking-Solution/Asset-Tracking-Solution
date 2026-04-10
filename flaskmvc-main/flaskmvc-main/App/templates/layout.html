@@ -49,6 +49,20 @@
 
     <!-- Main Content Area -->
     <div class="content-area">
+        <!-- Flash Messages -->
+        <div class="container-fluid mt-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show shadow-sm" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
         {% block content %}{% endblock %}
     </div>
     
@@ -57,8 +71,17 @@
     
     <!-- Common JavaScript -->
     <script>
-        // Handle mobile sidebar toggle
+        // Auto-hide alerts after 5 seconds
         document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                });
+            }, 5000);
+
+            // Handle mobile sidebar toggle
             const toggleBtn = document.getElementById('mobileSidebarToggle');
             const sidebar = document.querySelector('.sidebar');
             

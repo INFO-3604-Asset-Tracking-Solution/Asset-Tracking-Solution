@@ -166,6 +166,52 @@ def create_check_event_api():
         }), 500
 
 
+@audit_views.route('/api/check-event/<int:check_id>', methods=['DELETE'])
+@jwt_required()
+@role_required(['Administrator', 'Manager', 'Auditor'])
+def delete_check_event_api(check_id):
+    """Delete a check event (undo a scan). Only allowed during an active audit."""
+    try:
+        active_audit = get_active_audit()
+        if not active_audit:
+            return jsonify({
+                'success': False,
+                'message': 'No active audit found'
+            }), 400
+
+        check_event = get_check_event(check_id)
+        if not check_event:
+            return jsonify({
+                'success': False,
+                'message': f'Check event {check_id} not found'
+            }), 404
+
+        # Safety: only allow deleting events belonging to the current active audit
+        if check_event.audit_id != active_audit.audit_id:
+            return jsonify({
+                'success': False,
+                'message': 'Cannot undo a scan from a different or completed audit'
+            }), 403
+
+        deleted = delete_check_event(check_id)
+        if deleted:
+            return jsonify({
+                'success': True,
+                'message': f'Check event {check_id} deleted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to delete check event'
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error deleting check event: {str(e)}'
+        }), 500
+
+
 @audit_views.route('/api/mark-assets-missing', methods=['POST'])
 @jwt_required()
 @role_required(['Administrator', 'Manager', 'Auditor'])

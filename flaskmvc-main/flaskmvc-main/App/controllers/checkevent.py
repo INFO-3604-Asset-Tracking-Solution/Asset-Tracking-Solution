@@ -75,3 +75,13 @@ def update_check_event_status(check_id, status):
     check_event.status = status
     db.session.commit()
     return check_event
+
+
+def delete_check_event(check_id):
+    """Delete a check event by ID. Returns True on success, False if not found."""
+    check_event = CheckEvent.query.get(check_id)
+    if not check_event:
+        return False
+    db.session.delete(check_event)
+    db.session.commit()
+    return True

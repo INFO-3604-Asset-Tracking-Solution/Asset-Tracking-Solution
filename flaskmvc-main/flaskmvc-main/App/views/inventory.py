@@ -40,20 +40,32 @@ from App.models.assetassignment import AssetAssignment
 @inventory_views.route('/api/assets', methods=['GET'])
 @jwt_required()
 def get_assets():
+    from App.controllers.assetassignment import get_current_asset_assignment
+    
     assets = get_all_assets_json()
 
-    assignment_map = {}
-
     for asset in assets:
-
+        # Get status name
         if asset.get('status_id'):
             status = AssetStatus.query.get(asset['status_id'])
             asset['status_name'] = status.status_name if status else "Unknown"
 
-        if asset.get('room_id'):
-            room = get_room(asset['room_id'])
+        # Try to find current assignment to get the room
+        assignment = get_current_asset_assignment(asset['asset_id'])
+        if assignment:
+            room = get_room(assignment.room_id)
+            asset['room_id'] = assignment.room_id
             asset['room_name'] = room.room_name if room else "Unknown"
-
+            
+            # Also fetch assignee if possible
+            employee = assignment.employee
+            if employee:
+                asset['assignee_name'] = f"{employee.first_name} {employee.last_name}"
+            else:
+                asset['assignee_name'] = "Unassigned"
+        else:
+            asset['room_id'] = None
+            asset['room_name'] = "N/A"
             asset['assignee_name'] = "Unassigned"
 
     return jsonify(assets)

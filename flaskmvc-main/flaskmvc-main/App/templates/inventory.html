@@ -1,13 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iGOVTT - Asset Inventory</title>
+{% extends "layout.html" %}
+{% set active_page = 'inventory' %}
+{% block title %}iGOVTT - Asset Inventory{% endblock %}
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+{% block page_css %}
     <link href="{{ url_for('static', filename='css/inventory.css') }}" rel="stylesheet">
 
     <style>
@@ -20,29 +15,9 @@
             z-index: 9999;
         }
     </style>
-</head>
+{% endblock %}
 
-<body>
-
-<div class="sidebar">
-    <div class="profile-section">
-        <img src="{{ url_for('static', filename='images/profile_icon.png') }}" class="profile-image">
-        <h5>{{current_user.username}}</h5>
-        <small>{{current_user.email}}</small>
-    </div>
-    <nav>
-        <a href="/inventory" class="nav-item active">Inventory</a>
-        <a href="/audit" class="nav-item">Area Audit</a>
-        <a href="/discrepancy-report" class="nav-item">Discrepancy Report</a>
-    </nav>
-    <div class="sidebar-bottom">
-        <a href="/settings" class="nav-item">Settings</a>
-        <a href="/logout" class="nav-item text-danger">Log Out</a>
-    </div>
-</div>
-
-<div class="content-area">
-
+{% block content %}
     <h2 class="mb-4">Asset Inventory</h2>
     <div id="alertContainer"></div>
 
@@ -101,10 +76,33 @@
         </div>
     </div>
 
+    <!-- QR Export Toolbar (shown above table on selection) -->
+    <div id="qrExportToolbar" class="qr-export-toolbar d-none mb-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="toolbar-count">
+                <i class="bi bi-check2-square me-1"></i>
+                <span id="selectedCount">0</span> asset(s) selected
+            </span>
+            <div class="toolbar-divider"></div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                <i class="bi bi-x-circle me-1"></i>Deselect All
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="openQRExportModal('png')">
+                <i class="bi bi-file-image me-1"></i>Export as PNG
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="openQRExportModal('pdf')">
+                <i class="bi bi-file-pdf me-1"></i>Export as PDF
+            </button>
+        </div>
+    </div>
+
     <div class="inventory-table">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="selectAllCheckbox" class="form-check-input" title="Select All">
+                    </th>
                     <th>Item</th>
                     <th>Asset Tag</th>
                     <th>Brand/Model</th>
@@ -285,10 +283,35 @@
         </div>
     </div>
 
-</div>
+    <!-- QR Export Preview Modal -->
+    <div class="modal fade" id="qrExportModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-qr-code me-2"></i>QR Code Export Preview</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Each QR code contains: Asset ID, Description, Brand, Model, and Serial Number (pipe-separated).
+                        PDF exports include the asset description and room assignment.
+                    </p>
+                    <div id="qrExportGrid" class="qr-export-grid"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="confirmExportBtn">
+                        <i class="bi bi-download me-1"></i>Download
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
-
-</body>
-</html>
+{% endblock %}

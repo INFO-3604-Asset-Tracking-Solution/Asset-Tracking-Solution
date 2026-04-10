@@ -3,6 +3,20 @@
  * Manages the asset auditing process including scanning, tracking, and updating assets
  */
 
+const Haptic = (function() {
+    function vibrate(pattern) {
+        if ('vibrate' in navigator) {
+            navigator.vibrate(pattern);
+        }
+    }
+
+    return {
+        success: () => vibrate(50),
+        discrepancy: () => vibrate([50, 50, 50]),
+        invalid: () => vibrate([50, 50, 50, 50, 50])
+    };
+})();
+
 // QR Code Scanner Module
 /**
  * QR Code Scanner Module
@@ -352,23 +366,45 @@ const QRScanner = (function () {
             clearInterval(scanInterval);
         }
 
-        // Parse the QR code data (format: assetId|assetName)
+        // Parse the QR code data
+        // New format: asset_id|description|brand|model|serial_number
+        // Legacy format (old single-asset QRs): asset_id|assetName
         const parts = data.split('|');
-        if (parts.length < 1) {
-            console.error('Invalid QR code format:', data);
+
+        // Extract all fields - at minimum we need the asset ID
+        const assetId = parts[0]?.trim();
+        const description = parts[1]?.trim() || '';
+        const brand = parts[2]?.trim() || '';
+        const model = parts[3]?.trim() || '';
+        const serialNumber = parts[4]?.trim() || '';
+
+        // VALIDATION: If the asset ID is empty or malformed, it's an invalid scan
+        if (!assetId || assetId.length < 2) {
+            console.error('Scanned QR code contains invalid Asset ID:', assetId);
+            Haptic.invalid();
+            UI.showMessage(`Invalid QR Code detected: "${data}"`, 'danger');
+            
             if (isMobileDevice) {
-                scanInterval = setInterval(scanQRCode, 500);
+                // Return to scanning after a delay
+                const overlay = document.querySelector('.qr-scan-region');
+                if (overlay) {
+                    overlay.style.borderColor = '#dc3545';
+                    setTimeout(() => {
+                        overlay.style.borderColor = '#fff';
+                        scanInterval = setInterval(scanQRCode, 500);
+                    }, 1500);
+                } else {
+                    scanInterval = setInterval(scanQRCode, 500);
+                }
             }
             return;
         }
 
-        // Extract asset ID (which is the first part before the pipe)
-        const assetId = parts[0].trim();
-
         console.log('QR Code scanned:', data);
-        console.log('Processing asset ID:', assetId);
+        console.log(`Asset ID: ${assetId} | Description: ${description} | Brand: ${brand} | Model: ${model} | S/N: ${serialNumber}`);
 
         // Call the process asset callback with the asset ID
+
         if (processAssetCallback) {
             processAssetCallback(assetId, 'qrcode'); // Specify QR code method
 
@@ -1200,13 +1236,16 @@ async function ensureActiveAuditSession() {
             return;
         }
 
+        // Extract the check_id from the response for undo support
+        const checkId = checkOutcome?.check_event?.check_id ?? null;
+
         // 2. Identify and handle the result visually for the Auditor
         const assetInRoom = state.expectedAssets.find(a => a.id === assetId);
 
         if (assetInRoom) {
             // Asset is expected in this room
             if (!assetInRoom.found) {
-                markAssetAsFound(assetInRoom, scanMethod, currentCondition);
+                markAssetAsFound(assetInRoom, scanMethod, currentCondition, checkId);
             } else {
                 UI.showMessage(`Asset already scanned: ${assetInRoom.description} (${assetInRoom.id})`, 'info');
             }
@@ -1216,14 +1255,14 @@ async function ensureActiveAuditSession() {
                 // If the check event succeeded and it was misplaced ('pending relocation')
                 if (checkOutcome.location_discrepancy) {
                     // Logic from original `addMisplacedAsset` but using data from `checkOutcome`
-                    addMisplacedAsset(checkOutcome.check_event, scanMethod, currentCondition);
+                    addMisplacedAsset(checkOutcome.check_event, scanMethod, currentCondition, checkId);
                 } else {
                     // Unexpected (backend might not have an assignment for it but we saved the check event)
-                    addUnexpectedAsset(assetId, scanMethod, currentCondition);
+                    addUnexpectedAsset(assetId, scanMethod, currentCondition, checkId);
                 }
             } else {
                 // Unknown asset or backend failure
-                addUnexpectedAsset(assetId, scanMethod, currentCondition);
+                addUnexpectedAsset(assetId, scanMethod, currentCondition, checkId);
             }
         }
     }
@@ -1270,12 +1309,9 @@ async function ensureActiveAuditSession() {
      * Mark an asset as found
      * @param {Object} asset - The asset to mark as found
      */
-    function markAssetAsFound(asset, scanMethod, condition = 'Good') {
+    function markAssetAsFound(asset, scanMethod, condition = 'Good', checkId = null) {
         asset.found = true;
-        asset.status = 'Good';
         asset.identifiedCondition = condition;
-        asset.last_located = state.currentRoom;
-        asset.last_update = new Date().toISOString();
         asset.scanTime = new Date().toISOString();
         asset.scanMethod = scanMethod; // Store the scan method
 
@@ -1297,13 +1333,14 @@ async function ensureActiveAuditSession() {
         // Add to scanned assets list if not already there
         if (!state.scannedAssets.find(a => a.id === asset.id)) {
             // Create a copy to prevent reference issues
-            const assetCopy = { ...asset };
+            const assetCopy = { ...asset, checkId };
             state.scannedAssets.push(assetCopy);
             UI.updateScannedAssetsTable(state.scannedAssets, state.currentRoom);
         }
 
         UI.updateScanCounter(state.expectedAssets);
 
+        Haptic.success();
         UI.showMessage(`Asset found: ${asset.description} (${asset.id})`, 'success');
     }
 
@@ -1311,7 +1348,7 @@ async function ensureActiveAuditSession() {
      * Add a misplaced asset to scanned assets
      * @param {Object} asset - The misplaced asset
      */
-    function addMisplacedAsset(asset, scanMethod, condition = 'Good') {
+    function addMisplacedAsset(asset, scanMethod, condition = 'Good', checkId = null) {
         // Format the asset data
         const assetId = asset.id || asset['id:'] || '';
         const formattedAsset = {
@@ -1326,8 +1363,9 @@ async function ensureActiveAuditSession() {
             assignee_id: asset.assignee_id || 'Unassigned',
             last_update: asset.last_update || new Date().toISOString(),
             scanTime: new Date().toISOString(),
-            scanMethod: scanMethod, // Store the scan method
-            found: true
+            scanMethod: scanMethod,
+            found: true,
+            checkId  // Store for undo support
         };
 
         // Copy assignee_name if available
@@ -1341,6 +1379,7 @@ async function ensureActiveAuditSession() {
             UI.updateScannedAssetsTable(state.scannedAssets, state.currentRoom);
         }
 
+        Haptic.discrepancy();
         UI.showMessage(
             `Asset found: ${formattedAsset.description} (${assetId}) - Not assigned to this room!`,
             'warning'
@@ -1352,28 +1391,30 @@ async function ensureActiveAuditSession() {
      * Add an unexpected asset to scanned assets
      * @param {string} assetId - The ID of the unexpected asset
      */
-    function addUnexpectedAsset(assetId, scanMethod, condition = 'Good') {
+    function addUnexpectedAsset(assetId, scanMethod, condition = 'Good', checkId = null) {
+        // Create a placeholder asset object for unexpected assets
         const unexpectedAsset = {
             id: assetId,
-            description: 'Unexpected Asset',
+            description: 'Unknown Asset',
             brand: 'Unknown',
             model: 'Unknown',
             status: 'Unexpected',
             identifiedCondition: condition,
-            room_id: 'Unknown',
+            room_id: 'Unassigned',
             last_located: state.currentRoom,
             assignee_id: 'Unassigned',
-            assignee_name: 'Unassigned', // Add assignee_name explicitly
             last_update: new Date().toISOString(),
             scanTime: new Date().toISOString(),
-            scanMethod: scanMethod, // Store the scan method
-            found: true
+            scanMethod,
+            found: true,
+            checkId  // Store for undo support
         };
 
         // Add to scanned assets list
         state.scannedAssets.push(unexpectedAsset);
         UI.updateScannedAssetsTable(state.scannedAssets, state.currentRoom);
 
+        Haptic.discrepancy();
         UI.showMessage(`Unexpected asset added: ${assetId}`, 'warning');
     }
 
@@ -1449,7 +1490,7 @@ async function ensureActiveAuditSession() {
             UI.showMessage(`Network error marking assets as missing: ${error.message}`, 'danger');
         }
     }
-    function undoScan(assetId) {
+    async function undoScan(assetId) {
         if (!state.isRoomAuditActive) {
             UI.showMessage('Audit must be active to undo scans', 'warning');
             return false;
@@ -1463,6 +1504,27 @@ async function ensureActiveAuditSession() {
         }
 
         const scannedAsset = state.scannedAssets[scannedIndex];
+
+        // Delete the check event from the backend if we have its ID
+        if (scannedAsset.checkId) {
+            try {
+                const response = await fetch(`/api/check-event/${scannedAsset.checkId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    console.warn('Could not delete check event from backend:', data.message);
+                    UI.showMessage(`Warning: scan log could not be removed from database (${data.message})`, 'warning');
+                    // Still remove locally so the auditor is not blocked
+                }
+            } catch (err) {
+                console.error('Error deleting check event:', err);
+                UI.showMessage('Warning: scan log could not be removed from database', 'warning');
+            }
+        } else {
+            console.warn('No checkId stored for asset', assetId, '- skipping backend delete');
+        }
 
         // Remove from scanned assets
         state.scannedAssets.splice(scannedIndex, 1);
