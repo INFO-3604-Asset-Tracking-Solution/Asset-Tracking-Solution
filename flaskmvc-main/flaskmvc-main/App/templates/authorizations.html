@@ -119,16 +119,16 @@
                                 </td>
                                 <td class="text-end">
                                     {% if current_user.role in ['Administrator', 'Manager'] %}
-                                    <button class="btn btn-action btn-approve me-1 btn-approve-proposal" data-id="{{ auth.authorization_id }}">
-                                        Approve
+                                    <button class="btn-action btn-approve me-1 btn-approve-proposal" data-id="{{ auth.authorization_id }}">
+                                        <i class="bi bi-check-lg"></i> Approve
                                     </button>
-                                    <button class="btn btn-action btn-reject me-1 btn-reject-proposal" data-id="{{ auth.authorization_id }}">
-                                        Reject
+                                    <button class="btn-action btn-reject me-1 btn-reject-proposal" data-id="{{ auth.authorization_id }}">
+                                        <i class="bi bi-x-lg"></i> Reject
                                     </button>
                                     {% endif %}
                                     {% if auth.proposer.user_id == current_user.user_id %}
-                                    <button class="btn btn-sm btn-outline-danger btn-delete-proposal" data-id="{{ auth.authorization_id }}" title="Delete proposal">
-                                        <i class="bi bi-trash"></i>
+                                    <button class="btn btn-sm btn-outline-danger btn-delete-proposal" style="border-radius: 8px; padding: 6px 10px;" data-id="{{ auth.authorization_id }}" title="Delete proposal">
+                                        <i class="bi bi-trash" style="margin:0;"></i>
                                     </button>
                                     {% endif %}
                                 </td>

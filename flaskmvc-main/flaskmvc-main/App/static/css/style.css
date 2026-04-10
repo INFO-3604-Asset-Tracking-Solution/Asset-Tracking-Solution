@@ -56,6 +56,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .btn i {
@@ -67,6 +68,47 @@ body {
     border: none;
     border-radius: 8px;
 }
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}
+
+.btn-approve {
+    background: #eaffed;
+    color: #1b6d30;
+    border: 1px solid #c8e6c9;
+}
+
+.btn-approve:hover {
+    background: #1b6d30;
+    color: white;
+    border-color: #1b6d30;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(27, 109, 48, 0.2);
+}
+
+.btn-reject {
+    background: #fff0f1;
+    color: #8b1b26;
+    border: 1px solid #ffcdd2;
+}
+
+.btn-reject:hover {
+    background: #8b1b26;
+    color: white;
+    border-color: #8b1b26;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 27, 38, 0.2);
+}
+
 
 /* Sidebar and Navigation */
 .sidebar {
