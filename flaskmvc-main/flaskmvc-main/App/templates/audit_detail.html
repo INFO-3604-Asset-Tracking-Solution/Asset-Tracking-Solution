@@ -11,16 +11,12 @@
         border: none;
     }
     .status-badge {
-        padding: 5px 12px;
+        padding: 4px 10px;
         border-radius: 20px;
         font-weight: 500;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
-    .status-found { background-color: #d1e7dd; color: #0f5132; }
-    .status-missing { background-color: #ffe6e6; color: #cc0000; }
-    .status-relocated { background-color: #cfe2ff; color: #084298; }
-    .status-pending { background-color: #fff3cd; color: #856404; }
-    .status-lost { background-color: #e2e3e5; color: #41464b; }
+
     
     .phase-indicator {
         display: flex;
@@ -117,7 +113,8 @@
                 <h5 class="card-title fw-semibold"><i class="bi bi-info-circle text-primary"></i> Audit Info</h5>
                 <hr>
                 <p class="mb-2"><strong>Status:</strong> 
-                    <span class="badge {% if audit.status == 'COMPLETED' %}bg-success{% else %}bg-primary{% endif %}">
+                    <span class="status-badge {% if audit.status == 'COMPLETED' %}status-completed{% else %}status-in_progress{% endif %}">
+                        <i class="bi {% if audit.status == 'COMPLETED' %}bi-check-circle-fill{% else %}bi-arrow-repeat{% endif %}"></i>
                         {{ audit.status }}
                     </span>
                 </p>
@@ -181,7 +178,7 @@
                     </div>
                     
                     <div class="progress mb-2" style="height: 25px;">
-                        {% set total_scanned = found_count + relocated_count + condition_count + unexpected_count %}
+                        {% set total_scanned = found_count + relocated_count + unexpected_count %}
                         {% set progress_pct = 0 %}
                         {% if report.expected_total > 0 %}
                             {% set progress_pct = ((total_scanned - unexpected_count) / report.expected_total * 100)|round %}
@@ -268,13 +265,13 @@
                                     </td>
                                     <td>
                                         {% if room.expected_count == 0 and room.unexpected_here_count == 0 %}
-                                            <span class="badge bg-light text-dark border">N/A</span>
+                                            <span class="status-badge status-pending">N/A</span>
                                         {% elif is_complete %}
-                                            <span class="badge bg-success">Complete</span>
+                                            <span class="status-badge status-completed"><i class="bi bi-check-circle-fill"></i> Complete</span>
                                         {% elif total_processed > 0 %}
-                                            <span class="badge bg-info">In Progress</span>
+                                            <span class="status-badge status-in_progress"><i class="bi bi-arrow-repeat"></i> In Progress</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">Pending</span>
+                                            <span class="status-badge status-pending"><i class="bi bi-clock"></i> Pending</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -308,8 +305,8 @@
                                         <strong>{{ asset.asset_id }}</strong><br>
                                         <small class="text-muted">{{ asset.asset_description }}</small>
                                     </td>
-                                    <td>Room {{ asset.expected_room }}</td>
-                                    <td><span class="badge bg-secondary">Pending Scan</span></td>
+                                    <td>{{ asset.expected_room_name }}</td>
+                                    <td><span class="status-badge status-pending"><i class="bi bi-clock"></i> Pending Scan</span></td>
                                 </tr>
                             {% else %}
                                 <tr><td colspan="3" class="text-center text-muted py-4">All active assets have been processed!</td></tr>
@@ -320,7 +317,7 @@
             </div>
         </div>
     </div>
-    <!-- Relocated Tab -->
+    <!-- Room Mismatch Tab -->
     <div class="tab-pane fade" id="relocated" role="tabpanel">
         <div class="card audit-summary-card">
             <div class="card-body">
@@ -341,12 +338,14 @@
                                         <strong>{{ asset.asset_id }}</strong><br>
                                         <small class="text-muted">{{ asset.asset_description }}</small>
                                     </td>
-                                    <td>Room {{ asset.expected_room }}</td>
-                                    <td class="text-primary fw-bold">Room {{ asset.found_room_id }}</td>
+                                    <td>{{ asset.expected_room_name }}</td>
+                                    <td class="text-primary fw-bold">{{ asset.found_room_name }}</td>
                                     <td>
                                         {% if asset.status == 'pending relocation' %}
                                             <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Action</span>
-                                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="AuditDashboard.resolveRelocation('{{ asset.check_id }}', '{{ asset.found_room_id }}')">Resolve</button>
+                                            <a href="/discrepancy-report" class="btn btn-sm btn-outline-primary ms-2">
+                                                <i class="bi bi-arrow-right-circle me-1"></i> Resolve
+                                            </a>
                                         {% else %}
                                             <span class="badge bg-success"><i class="bi bi-check-circle"></i> Resolved</span>
                                         {% endif %}
@@ -383,7 +382,7 @@
                                         <strong>{{ asset.asset_id }}</strong><br>
                                         <small class="text-muted">{{ asset.asset_description }}</small>
                                     </td>
-                                    <td>Room {{ asset.found_room_id }}</td>
+                                    <td>{{ asset.found_room_name }}</td>
                                     <td><span class="badge bg-secondary">{{ asset.expected_condition }}</span></td>
                                     <td><span class="badge bg-warning text-dark fw-bold">{{ asset.condition }}</span></td>
                                 </tr>
@@ -418,10 +417,11 @@
                                         <strong>{{ asset.asset_id }}</strong><br>
                                         <small class="text-muted">{{ asset.asset_description }}</small>
                                     </td>
-                                    <td>Room {{ asset.expected_room }}</td>
+                                    <td>{{ asset.expected_room_name }}</td>
                                     <td>{{ asset.missing_since }}</td>
                                     <td>
-                                        <span class="badge {% if audit.status == 'COMPLETED' %}status-lost{% else %}status-missing{% endif %}">
+                                        <span class="status-badge {% if audit.status == 'COMPLETED' %}status-lost{% else %}status-missing{% endif %}">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
                                             {% if audit.status == 'COMPLETED' %}LOST{% else %}MISSING{% endif %}
                                         </span>
                                     </td>
@@ -444,9 +444,10 @@
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Asset Number</th>
-                                <th>Scanned In Room</th>
-                                <th>Date Scanned</th>
+                                <th>Asset</th>
+                                <th>Found In Room</th>
+                                <th>Condition</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -456,11 +457,14 @@
                                         <strong>{{ asset.asset_id }}</strong><br>
                                         <small class="text-muted">{{ asset.asset_description }}</small>
                                     </td>
-                                    <td>Room {{ asset.found_room_id }}</td>
-                                    <td>{{ asset.timestamp }}</td>
+                                    <td>{{ asset.found_room_name }}</td>
+                                    <td>{{ asset.condition }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">Process New Asset</button>
+                                    </td>
                                 </tr>
                             {% else %}
-                                <tr><td colspan="3" class="text-center text-muted py-4">No unexpected assets scanned.</td></tr>
+                                <tr><td colspan="4" class="text-center text-muted py-4">No unexpected assets found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -505,6 +509,7 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -512,26 +517,6 @@
     {{ daily_reports | tojson | safe }}
 </script>
 <script>
-const AuditDashboard = {
-    async resolveRelocation(checkId, foundRoomId) {
-        if(!confirm("Resolve this relocation? The asset will be marked as found in Room " + foundRoomId)) return;
-        try {
-            const res = await fetch(`/api/checkevent/${checkId}/resolve`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ action: 'relocate' })
-            });
-            
-            if (res.ok) {
-                alert('Relocation resolved successfully!');
-                window.location.reload();
-            } else {
-                alert('Failed to resolve relocation.');
-            }
-        } catch(e) { console.error(e); }
-    }
-};
-
 document.addEventListener('DOMContentLoaded', () => {
     let rawData = document.getElementById('dailyReportsData').textContent;
     let dailyData = null;
@@ -589,13 +574,23 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="col-md-3">
                                 <h6 class="fw-bold text-success border-bottom pb-2">Found Correct</h6>
                                 <ul class="list-group list-group-flush small">
-                                    ${roomFound.length > 0 ? roomFound.map(a => `<li class="list-group-item bg-transparent text-success py-1"><i class="bi bi-check-circle me-2"></i><strong>${a.asset_id}</strong> - ${a.asset_description}</li>`).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
+                                    ${roomFound.length > 0 ? roomFound.map(a => {
+                                        const hasCondIssue = a.condition !== a.expected_condition;
+                                        const icon = hasCondIssue ? 'bi-exclamation-circle-fill text-warning' : 'bi-check-circle text-success';
+                                        const label = hasCondIssue ? ' (Condition Issue)' : '';
+                                        return `<li class="list-group-item bg-transparent text-success py-1"><i class="bi ${icon} me-2"></i><strong>${a.asset_id}</strong> - ${a.asset_description}${label}</li>`;
+                                    }).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
                                 </ul>
                             </div>
                             <div class="col-md-3">
                                 <h6 class="fw-bold text-primary border-bottom pb-2">Found Elsewhere</h6>
                                 <ul class="list-group list-group-flush small">
-                                    ${roomRelocated.length > 0 ? roomRelocated.map(a => `<li class="list-group-item bg-transparent text-primary py-1"><i class="bi bi-geo-alt me-2"></i><strong>${a.asset_id}</strong> - Found in Room ${a.found_room_id}</li>`).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
+                                    ${roomRelocated.length > 0 ? roomRelocated.map(a => {
+                                        const hasCondIssue = a.condition !== a.expected_condition;
+                                        const icon = hasCondIssue ? 'bi-exclamation-triangle-fill text-warning' : 'bi-geo-alt text-primary';
+                                        const label = hasCondIssue ? ' (Condition Issue)' : '';
+                                        return `<li class="list-group-item bg-transparent text-primary py-1"><i class="bi ${icon} me-2"></i><strong>${a.asset_id}</strong> - Found in ${a.found_room_name}${label}</li>`;
+                                    }).join('') : '<li class="list-group-item bg-transparent text-muted py-1">None.</li>'}
                                 </ul>
                             </div>
                             <div class="col-md-3">

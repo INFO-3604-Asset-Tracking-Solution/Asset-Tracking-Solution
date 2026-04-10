@@ -53,9 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tableBody.innerHTML = rows.map(row => {
-            // Supports either shape:
-            // 1) { missing_asset, relocated_asset, reconciliation }
-            // 2) { missing, relocated, reconciliation }
             const missingAsset = row.missing_asset ?? row.missing ?? '-';
             const relocatedAsset = row.relocated_asset ?? row.relocated ?? '-';
             const reconciliation = row.reconciliation || 'Pending';
@@ -78,9 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button
                         class="btn btn-sm btn-outline-success mark-relocated-btn"
                         data-relocation-id="${row.relocation_id}"
+                        data-asset-id="${row.asset_id}"
+                        data-asset-desc="${row.asset_description || ''}"
+                        data-expected-room="${row.expected_room_name || ''}"
+                        data-found-room="${row.found_room_name || ''}"
+                        data-found-room-id="${row.found_room_id || ''}"
                         type="button"
                     >
-                        Mark Relocated
+                        Resolve
                     </button>
                 `);
             }
@@ -181,31 +183,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (markRelocatedBtn) {
-            const relocationId = markRelocatedBtn.dataset.relocationId;
-            const roomId = prompt('Enter relocated room ID:');
-            if (!relocationId || !roomId) return;
-
-            try {
-                const response = await fetch('/mark-asset-relocated', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        relocation_id: relocationId,
-                        item_relocated_room_id: roomId
-                    })
-                });
-
-                if (!response.ok) {
-                    const result = await response.json().catch(() => ({}));
-                    throw new Error(result.message || 'Failed to mark asset as relocated.');
-                }
-
-                await loadDiscrepancies();
-                alert('Asset marked as relocated.');
-            } catch (error) {
-                console.error('Mark relocated error:', error);
-                alert(error.message || 'Failed to mark asset as relocated.');
-            }
+            const d = markRelocatedBtn.dataset;
+            RelocationHandler.openModal(
+                d.relocationId,
+                d.foundRoomId,
+                d.assetId,
+                d.assetDesc,
+                d.expectedRoom,
+                d.foundRoom
+            );
             return;
         }
 
@@ -250,3 +236,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadDiscrepancies();
 });
+
+// Resolution Handler for Relocations
+window.RelocationHandler = {
+    currentRelocationId: null,
+    currentFoundRoomId: null,
+
+    openModal: function(relocationId, foundRoomId, assetId, assetDesc, expectedRoom, foundRoom) {
+        this.currentRelocationId = relocationId;
+        this.currentFoundRoomId = foundRoomId;
+        
+        document.getElementById('modalAssetId').textContent = assetId;
+        document.getElementById('modalAssetDesc').textContent = assetDesc;
+        document.getElementById('modalExpectedRoom').textContent = expectedRoom;
+        document.getElementById('modalFoundRoom').textContent = foundRoom;
+        
+        const modalElement = document.getElementById('relocationModal');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    },
+
+    submitResolution: async function(choice) {
+        if (!this.currentRelocationId) return;
+        
+        try {
+            const response = await fetch('/api/relocation/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    relocation_id: this.currentRelocationId,
+                    choice: choice,
+                    new_room_id: this.currentFoundRoomId
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Resolution failed:', error);
+            alert('An unexpected error occurred.');
+        }
+    }
+};

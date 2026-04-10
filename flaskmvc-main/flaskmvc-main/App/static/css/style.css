@@ -56,6 +56,7 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .btn i {
@@ -67,6 +68,47 @@ body {
     border: none;
     border-radius: 8px;
 }
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}
+
+.btn-approve {
+    background: #eaffed;
+    color: #1b6d30;
+    border: 1px solid #c8e6c9;
+}
+
+.btn-approve:hover {
+    background: #1b6d30;
+    color: white;
+    border-color: #1b6d30;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(27, 109, 48, 0.2);
+}
+
+.btn-reject {
+    background: #fff0f1;
+    color: #8b1b26;
+    border: 1px solid #ffcdd2;
+}
+
+.btn-reject:hover {
+    background: #8b1b26;
+    color: white;
+    border-color: #8b1b26;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 27, 38, 0.2);
+}
+
 
 /* Sidebar and Navigation */
 .sidebar {
@@ -147,6 +189,50 @@ body {
 .status-misplaced {
     background: var(--warning-color);
 }
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    gap: 6px;
+}
+
+.status-badge.status-completed,
+.status-badge.status-approved,
+.status-badge.status-available {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #1b6d30;
+    border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.status-badge.status-in_progress,
+.status-badge.status-misplaced {
+    background-color: rgba(243, 156, 18, 0.1);
+    color: #a05d05;
+    border: 1px solid rgba(243, 156, 18, 0.2);
+}
+
+.status-badge.status-pending,
+.status-badge.status-under_maintenance {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: #1a5a8a;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.status-badge.status-rejected,
+.status-badge.status-missing,
+.status-badge.status-lost {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #8b1b26;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
 
 /* Table Styling */
 .inventory-table {

@@ -100,7 +100,10 @@
                     <div class="detail-field">
                         <div class="field-label">Status</div>
                         <div class="field-value">
-                            <span class="status-badge {{ asset.status.lower() }}">{{ asset.status }}</span>
+                            <span class="status-badge status-{{ asset.status.lower() }}">
+                                <i class="bi {% if asset.status == 'Available' %}bi-check-circle-fill{% elif asset.status in ['Missing', 'Lost'] %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %}"></i>
+                                {{ asset.status }}
+                            </span>
                         </div>
                     </div>
                     
@@ -128,7 +131,9 @@
                         <div class="field-value">
                             {{ last_location_name }}
                             {% if asset.room_id != asset.last_located %}
-                            <span class="badge bg-warning text-dark">Misplaced</span>
+                             <span class="status-badge status-misplaced">
+                                 <i class="bi bi-geo-fill"></i> Misplaced
+                             </span>
                             {% endif %}
                         </div>
                     </div>
@@ -191,7 +196,10 @@
                         <div class="scan-time">{{ event.scan_time.strftime('%Y-%m-%d %H:%M') }}</div>
                         <div class="scan-details">
                             <strong>Room:</strong> {{ event.room_name }}
-                            <span class="badge bg-secondary status-history-badge">{{ event.status }}</span>
+                            <span class="status-badge status-{{ event.status|lower }} status-history-badge">
+                                <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i>
+                                {{ event.status }}
+                            </span>
                         </div>
                         {% if event.notes %}
                         <div class="scan-notes">{{ event.notes }}</div>

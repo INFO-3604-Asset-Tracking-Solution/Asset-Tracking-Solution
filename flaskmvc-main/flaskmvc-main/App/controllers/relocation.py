@@ -1,5 +1,7 @@
 from App.models import Relocation, CheckEvent, Room
 from App.database import db
+from App.controllers.assetassignment import get_current_asset_assignment, end_assignment, create_asset_assignment
+
 
 
 def create_relocation(check_id, found_room_id):
@@ -23,6 +25,78 @@ def create_relocation(check_id, found_room_id):
     db.session.add(relocation)
     db.session.commit()
 
+    return relocation
+
+
+def resolve_relocation_extended(relocation_id, choice, new_room_id=None):
+    """
+    Handles complex relocation resolutions.
+    Choices: 'reassign', 'return_home', 'end_assignment'
+    """
+    relocation = get_relocation(relocation_id)
+    if not relocation:
+        return None
+
+    check = CheckEvent.query.get(relocation.check_id)
+    if not check:
+        return None
+
+    asset_id = check.asset_id
+    current_assignment = get_current_asset_assignment(asset_id)
+
+    if choice == 'reassign' and new_room_id:
+        # 1. End current assignment if exists
+        if current_assignment:
+            end_assignment(current_assignment.assignment_id)
+        
+        # 2. Create new assignment to the new room (where found or chosen)
+        # For simplicity, we assign it to the employee from previous assignment if exists
+        prev_emp_id = current_assignment.employee_id if current_assignment else 1 # Fallback to admin/system employee if needed
+        create_asset_assignment(asset_id, prev_emp_id, new_room_id, check.condition)
+        
+        # 3. Create success check event and link
+        new_check = CheckEvent(
+            audit_id=check.audit_id,
+            asset_id=asset_id,
+            user_id=check.user_id,
+            found_room_id=new_room_id,
+            condition=check.condition,
+            status='relocated'
+        )
+        db.session.add(new_check)
+        db.session.flush()
+        relocation.new_check_event_id = new_check.check_id
+        check.status = 'relocated'
+
+    elif choice == 'return_home':
+        # Don't change assignment. Just acknowledge it needs to go back.
+        # We don't mark as resolved in the DB fully (new_check_event_id stays None)
+        # so it stays in the list, but we could add a note.
+        # However, the user said "remain in the list", so we just exit.
+        print(f"Relocation {relocation_id} marked for return home.")
+        pass
+
+    elif choice == 'end_assignment':
+        # 1. End current assignment
+        if current_assignment:
+            end_assignment(current_assignment.assignment_id)
+        
+        # 2. Mark relocation as resolved by concluding it
+        check.status = 'relocated' # Or maybe a new status, but 'relocated' works for UI filters
+        # We create a new check event in its "found" room but with no assignment
+        new_check = CheckEvent(
+            audit_id=check.audit_id,
+            asset_id=asset_id,
+            user_id=check.user_id,
+            found_room_id=check.found_room_id,
+            condition=check.condition,
+            status='found' # It's found and now "Available"
+        )
+        db.session.add(new_check)
+        db.session.flush()
+        relocation.new_check_event_id = new_check.check_id
+
+    db.session.commit()
     return relocation
 
 
