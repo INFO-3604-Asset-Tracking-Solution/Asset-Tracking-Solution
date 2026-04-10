@@ -30,7 +30,8 @@ def audit_list():
 def audit_detail(audit_id):
     audit = get_audit_by_id(audit_id)
     report = generate_final_report(audit_id)
-    return render_template('audit_detail.html', audit=audit, report=report)
+    daily_reports = generate_daily_interim_reports_for_audit(audit_id)
+    return render_template('audit_detail.html', audit=audit, report=report, daily_reports=daily_reports)
 
 
 @audit_views.route('/start-audit', methods=['GET'])
@@ -121,16 +122,26 @@ def create_check_event_api():
                 }), 400
             audit_id = active_audit.audit_id
 
-        current_assignment = get_current_asset_assignment(asset_id)
-        if not current_assignment:
+        from App.models.asset import Asset
+        asset = Asset.query.get(asset_id)
+        if not asset:
             return jsonify({
                 'success': False,
-                'message': 'No active assignment found for this asset'
+                'message': f'Asset {asset_id} does not exist in the database'
             }), 404
 
+        current_assignment = get_current_asset_assignment(asset_id)
+        
         status = 'found'
-        if int(current_assignment.room_id) != int(found_room_id):
+        location_discrepancy = False
+
+        if not current_assignment:
+            # Asset exists but has no active assignment to any room
             status = 'pending relocation'
+            location_discrepancy = True
+        elif int(current_assignment.room_id) != int(found_room_id):
+            status = 'pending relocation'
+            location_discrepancy = True
 
         check_event = create_check_event(
             audit_id=audit_id,
@@ -328,6 +339,12 @@ def get_audit_by_id_api(audit_id):
 def generate_iterim_report_api(audit_id):
     audit = generate_interim_report(audit_id)
     return jsonify(audit), 200
+
+@audit_views.route('/api/audit/<audit_id>/daily-interim-reports', methods=['GET'])
+@jwt_required()
+def generate_daily_iterim_reports_api(audit_id):
+    reports = generate_daily_interim_reports_for_audit(audit_id)
+    return jsonify(reports), 200
 
 
 @audit_views.route('/api/compare-audits/<audit_id>/<audit_id2>', methods=['GET'])

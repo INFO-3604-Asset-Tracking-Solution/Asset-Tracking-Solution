@@ -48,7 +48,8 @@ if (workbox) {
                 (url.pathname.startsWith('/api/') && request.method === 'GET');
         },
         new workbox.strategies.NetworkFirst({
-            cacheName: 'dynamic-content-v2',
+            cacheName: 'dynamic-content-v3',
+            networkTimeoutSeconds: 3, // Fallback to cache quickly if network is slow
             plugins: [
                 new workbox.expiration.ExpirationPlugin({
                     maxEntries: 100,
@@ -65,7 +66,8 @@ if (workbox) {
     workbox.routing.registerRoute(
         ({ request }) => request.destination === 'style' || request.destination === 'script' || request.destination === 'worker',
         new workbox.strategies.NetworkFirst({
-            cacheName: 'site-static-v3',
+            cacheName: 'site-static-v4',
+            networkTimeoutSeconds: 3, 
         })
     );
 

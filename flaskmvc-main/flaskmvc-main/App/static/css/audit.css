@@ -504,3 +504,62 @@
     }
 }
 
+/* Scan Feedback Overlay */
+.scan-feedback-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    text-align: center;
+    min-width: 250px;
+}
+
+.scan-feedback-overlay.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.scan-feedback-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.scan-feedback-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.scan-feedback-subtitle {
+    font-size: 1rem;
+    color: #6c757d;
+    display: block;
+}
+
+/* Success State */
+.scan-feedback-success {
+    border-top: 8px solid var(--success-color);
+}
+.scan-feedback-success .scan-feedback-icon { color: var(--success-color); }
+
+/* Discrepancy State */
+.scan-feedback-discrepancy {
+    border-top: 8px solid var(--warning-color);
+}
+.scan-feedback-discrepancy .scan-feedback-icon { color: var(--warning-color); }
+
+/* Error/Unknown State */
+.scan-feedback-error {
+    border-top: 8px solid var(--danger-color);
+}
+.scan-feedback-error .scan-feedback-icon { color: var(--danger-color); }

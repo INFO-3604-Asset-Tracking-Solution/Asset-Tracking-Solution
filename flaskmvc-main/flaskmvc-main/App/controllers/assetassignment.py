@@ -52,7 +52,31 @@ def get_all_asset_assignment_json():
     if not assignments:
         return[]
 
-    return [assignment.get_json() for assignment in assignments]
+    json_list = []
+    for assignment in assignments:
+        data = assignment.get_json()
+        
+        # Add status which was missing in get_json
+        data['status'] = assignment.status
+        
+        # Add Asset Description
+        asset = assignment.asset
+        data['asset_description'] = asset.description if asset else "Unknown"
+        
+        # Add Employee Name
+        employee = assignment.employee
+        if employee:
+            data['employee_name'] = f"{employee.first_name} {employee.last_name}"
+        else:
+            data['employee_name'] = "Unassigned"
+            
+        # Add Room Name
+        room = assignment.room
+        data['room_name'] = room.room_name if room else "Unknown"
+        
+        json_list.append(data)
+        
+    return json_list
 
 def get_asset_assignment_by_id(assignment_id):
     return AssetAssignment.query.get(assignment_id)

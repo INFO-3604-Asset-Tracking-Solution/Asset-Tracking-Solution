@@ -18,9 +18,10 @@ class Employee(db.Model):
 
     def get_json(self):
         return {
-            'id': self.employee_id,
+            'employee_id': self.employee_id,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'full_name': f"{self.first_name} {self.last_name}",
             'email': self.email
         }
 
