@@ -54,7 +54,7 @@ def end_audit_view():
         flash('No active audit to end, or unresolved relocation still exists', 'error')
     else:
         flash('Audit completed successfully!', 'success')
-    return redirect(url_for('audit_views.audit_list'))
+    return redirect(url_for('audit_views.audit_list')), 200
 
 
 @audit_views.route('/compare-audits/<audit_id>/<audit_id2>', methods=['POST'])
@@ -111,7 +111,7 @@ def create_check_event_api():
         found_room_id = data['found_room_id']
         condition = data['condition']
         user_id = current_user.user_id
-
+        
         audit_id = data.get('audit_id')
         if not audit_id:
             active_audit = get_active_audit()
@@ -122,8 +122,8 @@ def create_check_event_api():
                 }), 400
             audit_id = active_audit.audit_id
 
-        from App.models.asset import Asset
-        asset = Asset.query.get(asset_id)
+        
+        asset = get_asset(asset_id)
         if not asset:
             return jsonify({
                 'success': False,

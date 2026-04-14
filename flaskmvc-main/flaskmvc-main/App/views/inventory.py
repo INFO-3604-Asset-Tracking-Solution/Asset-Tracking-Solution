@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
-from App.controllers.asset import get_all_assets_json, get_asset, update_asset_details, add_asset
-from App.controllers.room import get_room
-from App.controllers.assetassignment import create_asset_assignment, end_assignment, get_all_asset_assignment_json, get_asset_assignment_by_id
-from App.controllers.employee import get_all_employees_json
+from App.controllers.asset import *
+from App.controllers.room import *
+from App.controllers.assetassignment import *
+from App.controllers.employee import *
 from App.models.assetassignment import AssetAssignment
 from App.models.assetstatus import AssetStatus
 from App.controllers.room import get_all_rooms_json
@@ -198,9 +198,7 @@ def get_assignments():
 def create_assignment_route():
 
     data = request.json
-    print("=== ASSIGNMENT DEBUG ===")
-    print("Received data:", data)
-
+    print(data)
     if not data:
         return jsonify({'success': False, 'message': 'No data'}), 400
 
@@ -208,19 +206,6 @@ def create_assignment_route():
         asset_id = data.get('asset_id')
         employee_id = data.get('employee_id')
         room_id = data.get('room_id')
-
-        print(f"asset_id='{asset_id}' type={type(asset_id)}")
-        print(f"employee_id='{employee_id}' type={type(employee_id)}")
-        print(f"room_id='{room_id}' type={type(room_id)}")
-
-        from App.models import Asset, Employee, Room
-        asset = Asset.query.filter_by(asset_id=asset_id).first()
-        employee = Employee.query.filter_by(employee_id=employee_id).first()
-        room = Room.query.filter_by(room_id=room_id).first()
-
-        print(f"asset found: {asset}")
-        print(f"employee found: {employee}")
-        print(f"room found: {room}")
 
         assignment = create_asset_assignment(
             asset_id=asset_id,

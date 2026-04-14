@@ -32,7 +32,7 @@ def get_users_action():
     if jwt_current_user.role != 'Administrator':
         return jsonify({'success': False, 'message': 'Access denied: Administrator only'}), 403
     users = get_all_users_json()
-    return jsonify(users)
+    return jsonify(users), 200
 
 @user_views.route('/api/users/create', methods=['POST'])
 @jwt_required()

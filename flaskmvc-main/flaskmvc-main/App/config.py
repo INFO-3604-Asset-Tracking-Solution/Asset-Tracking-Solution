@@ -48,6 +48,11 @@ def load_config(app, overrides):
 
     # Set other standard configs
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_size": 30,
+        "max_overflow": 20,
+        "pool_timeout": 60,
+    }
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.config['PREFERRED_URL_SCHEME'] = 'https'
     app.config['UPLOADED_PHOTOS_DEST'] = "App/uploads" # Consider using a persistent disk on Render if uploads need to persist
